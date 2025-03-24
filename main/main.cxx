@@ -115,9 +115,8 @@ static esp_err_t app_lvgl_main(void)
 
 	__attribute__((unused)) auto disp = lv_disp_get_default();
 	// lv_disp_set_rotation(disp, LV_DISP_ROTATION_90);
-	//  lv_disp_set_rotation(disp, LV_DISP_ROT_180);
-	//  lv_disp_set_rotation(disp, LV_DISP_ROT_270);
-	ui_init();
+	//   lv_disp_set_rotation(disp, LV_DISP_ROT_180);
+	//   lv_disp_set_rotation(disp, LV_DISP_ROT_270);
 
 	updateCurrentTemp(currentTemp);
 	updateSetTemp(setTemp);
@@ -152,7 +151,7 @@ extern "C" void app_main(void)
 	lvgl_port_add_touch(&touch_cfg);
 
 	ESP_ERROR_CHECK(lcd_display_brightness_set(75));
-	ESP_ERROR_CHECK(lcd_display_rotate(lvgl_display, LV_DISPLAY_ROTATION_90));
+	// ESP_ERROR_CHECK(lcd_display_rotate(lvgl_display, LV_DISPLAY_ROTATION_90));
 	ESP_ERROR_CHECK(app_lvgl_main());
 
 	while (42)
