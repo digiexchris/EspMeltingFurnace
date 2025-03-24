@@ -1,0 +1,12 @@
+{
+    "idf.pythonInstallPath": "/usr/bin/python3",
+    "idf.flashType": "UART",
+    "idf.port": "/dev/ttyUSB0",
+    "files.associations": {
+        "ui.h": "c",
+        "lvgl.h": "c",
+        "lv_version.h": "c",
+        "lv_init.h": "c",
+        "lv_mem.h": "c"
+    }
+}
