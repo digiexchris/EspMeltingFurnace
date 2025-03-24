@@ -23,6 +23,7 @@
 #include <lvgl.h>
 
 #include "hardware.h"
+#include "lcd.h"
 
 static const char *TAG = "lcd";
 

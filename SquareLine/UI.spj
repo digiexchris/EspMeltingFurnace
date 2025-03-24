@@ -1641,20 +1641,42 @@
               },
               {
                 "nid": 90,
-                "flags": 1048576,
                 "strtype": "OBJECT/Flags",
                 "InheritedType": 1
               },
               {
                 "nid": 225,
-                "flags": 1048576,
                 "strtype": "OBJECT/Scrolling",
                 "InheritedType": 1
               },
               {
+                "nid": 230,
+                "strtype": "OBJECT/Scrollable",
+                "strval": "False",
+                "InheritedType": 2
+              },
+              {
+                "nid": 240,
+                "strtype": "OBJECT/Scroll_elastic",
+                "strval": "False",
+                "InheritedType": 2
+              },
+              {
+                "nid": 250,
+                "strtype": "OBJECT/Scroll_momentum",
+                "strval": "False",
+                "InheritedType": 2
+              },
+              {
+                "nid": 270,
+                "strtype": "OBJECT/Scroll_chain",
+                "strval": "False",
+                "InheritedType": 2
+              },
+              {
                 "nid": 300,
                 "strtype": "OBJECT/Scrollbar_mode",
-                "strval": "AUTO",
+                "strval": "OFF",
                 "InheritedType": 3
               },
               {
@@ -1723,7 +1745,33 @@
               },
               {
                 "part": "lv.PART.MAIN",
-                "childs": [],
+                "childs": [
+                  {
+                    "nid": 10000,
+                    "strtype": "_style/StyleState",
+                    "strval": "DEFAULT",
+                    "childs": [
+                      {
+                        "nid": 10310,
+                        "strtype": "_style/Arc_Color",
+                        "intarray": [
+                          122,
+                          122,
+                          230,
+                          255
+                        ],
+                        "InheritedType": 7
+                      },
+                      {
+                        "nid": 10320,
+                        "strtype": "_style/Arc_Width",
+                        "integer": 10,
+                        "InheritedType": 6
+                      }
+                    ],
+                    "InheritedType": 1
+                  }
+                ],
                 "nid": 1070,
                 "strtype": "ARC/Style_main",
                 "strval": "lv.PART.MAIN, Rectangle, Pad, Arc, Transform",
@@ -1731,7 +1779,27 @@
               },
               {
                 "part": "lv.PART.INDICATOR",
-                "childs": [],
+                "childs": [
+                  {
+                    "nid": 10000,
+                    "strtype": "_style/StyleState",
+                    "strval": "DEFAULT",
+                    "childs": [
+                      {
+                        "nid": 10310,
+                        "strtype": "_style/Arc_Color",
+                        "intarray": [
+                          255,
+                          0,
+                          0,
+                          255
+                        ],
+                        "InheritedType": 7
+                      }
+                    ],
+                    "InheritedType": 1
+                  }
+                ],
                 "nid": 1080,
                 "strtype": "ARC/Style_indicator",
                 "strval": "lv.PART.INDICATOR, Rectangle, Pad, Arc",
@@ -2697,7 +2765,6 @@
               },
               {
                 "nid": 225,
-                "flags": 1048576,
                 "strtype": "OBJECT/Scrolling",
                 "InheritedType": 1
               },
@@ -2708,9 +2775,21 @@
                 "InheritedType": 2
               },
               {
-                "nid": 260,
-                "strtype": "OBJECT/Scroll_on_focus",
-                "strval": "True",
+                "nid": 240,
+                "strtype": "OBJECT/Scroll_elastic",
+                "strval": "False",
+                "InheritedType": 2
+              },
+              {
+                "nid": 250,
+                "strtype": "OBJECT/Scroll_momentum",
+                "strval": "False",
+                "InheritedType": 2
+              },
+              {
+                "nid": 270,
+                "strtype": "OBJECT/Scroll_chain",
+                "strval": "False",
                 "InheritedType": 2
               },
               {
@@ -3127,81 +3206,6 @@
             "strtype": "SCREEN/Style_scrollbar",
             "strval": "lv.PART.SCROLLBAR, Rectangle, Pad",
             "InheritedType": 11
-          },
-          {
-            "disabled": false,
-            "nid": -1809008254,
-            "strtype": "_event/EventHandler",
-            "strval": "GESTURE_RIGHT(GESTURE)",
-            "childs": [
-              {
-                "nid": -1480542889,
-                "strtype": "_custom/name",
-                "strval": "ChangeToSettingsEvent",
-                "InheritedType": 10
-              },
-              {
-                "nid": 876632580,
-                "strtype": "_custom/condition_C",
-                "strval": "",
-                "InheritedType": 10
-              },
-              {
-                "nid": 471468798,
-                "strtype": "_custom/condition_P",
-                "strval": "",
-                "InheritedType": 10
-              },
-              {
-                "nid": -1602266186,
-                "strtype": "_event/action",
-                "strval": "CHANGE SCREEN",
-                "childs": [
-                  {
-                    "nid": 548898004,
-                    "strtype": "CHANGE SCREEN/Name",
-                    "strval": "CHANGE SCREEN",
-                    "InheritedType": 10
-                  },
-                  {
-                    "nid": 2058355555,
-                    "strtype": "CHANGE SCREEN/Call",
-                    "strval": "ChangeScreen( <{Screen_to}>, lv.SCR_LOAD_ANIM.<{Fade_mode}>, <{Speed}>, <{Delay}>)",
-                    "InheritedType": 10
-                  },
-                  {
-                    "nid": -1658911584,
-                    "strtype": "CHANGE SCREEN/CallC",
-                    "strval": "_ui_screen_change( &<{Screen_to}>, LV_SCR_LOAD_ANIM_<{Fade_mode}>, <{Speed}>, <{Delay}>, &<{Screen_to}>_screen_init);",
-                    "InheritedType": 10
-                  },
-                  {
-                    "nid": -1091499249,
-                    "strtype": "CHANGE SCREEN/Screen_to",
-                    "strval": "GUID81027989-782399S2661237",
-                    "InheritedType": 9
-                  },
-                  {
-                    "nid": -1927293302,
-                    "strtype": "CHANGE SCREEN/Fade_mode",
-                    "strval": "FADE_ON",
-                    "InheritedType": 3
-                  },
-                  {
-                    "nid": 1895980752,
-                    "strtype": "CHANGE SCREEN/Speed",
-                    "InheritedType": 6
-                  },
-                  {
-                    "nid": -1375358717,
-                    "strtype": "CHANGE SCREEN/Delay",
-                    "InheritedType": 6
-                  }
-                ],
-                "InheritedType": 10
-              }
-            ],
-            "InheritedType": 4
           }
         ],
         "saved_objtypeKey": "SCREEN"
@@ -3318,82 +3322,6 @@
             "strtype": "SCREEN/Style_scrollbar",
             "strval": "lv.PART.SCROLLBAR, Rectangle, Pad",
             "InheritedType": 11
-          },
-          {
-            "disabled": false,
-            "nid": 1000039,
-            "strtype": "_event/EventHandler",
-            "strval": "GESTURE_RIGHT(GESTURE)",
-            "childs": [
-              {
-                "nid": 1000040,
-                "strtype": "_event/name",
-                "strval": "ChangeToTempEvent",
-                "InheritedType": 10
-              },
-              {
-                "nid": 1000041,
-                "strtype": "_event/condition_C",
-                "strval": "",
-                "InheritedType": 10
-              },
-              {
-                "nid": 1000042,
-                "strtype": "_event/condition_P",
-                "strval": "",
-                "InheritedType": 10
-              },
-              {
-                "nid": 1000269,
-                "strtype": "_event/action",
-                "strval": "CHANGE SCREEN",
-                "childs": [
-                  {
-                    "nid": 1000270,
-                    "strtype": "CHANGE SCREEN/Name",
-                    "strval": "CHANGE SCREEN",
-                    "InheritedType": 10
-                  },
-                  {
-                    "nid": 1000271,
-                    "strtype": "CHANGE SCREEN/Call",
-                    "strval": "ChangeScreen( <{Screen_to}>, lv.SCR_LOAD_ANIM.<{Fade_mode}>, <{Speed}>, <{Delay}>)",
-                    "InheritedType": 10
-                  },
-                  {
-                    "nid": 1000272,
-                    "strtype": "CHANGE SCREEN/CallC",
-                    "strval": "_ui_screen_change( &<{Screen_to}>, LV_SCR_LOAD_ANIM_<{Fade_mode}>, <{Speed}>, <{Delay}>, &<{Screen_to}>_screen_init);",
-                    "InheritedType": 10
-                  },
-                  {
-                    "nid": 1000273,
-                    "strtype": "CHANGE SCREEN/Screen_to",
-                    "strval": "GUID81027989-782399S2661237",
-                    "InheritedType": 9
-                  },
-                  {
-                    "nid": 1000274,
-                    "strtype": "CHANGE SCREEN/Fade_mode",
-                    "strval": "FADE_ON",
-                    "InheritedType": 3
-                  },
-                  {
-                    "nid": 1000275,
-                    "strtype": "CHANGE SCREEN/Speed",
-                    "integer": 500,
-                    "InheritedType": 6
-                  },
-                  {
-                    "nid": 1000276,
-                    "strtype": "CHANGE SCREEN/Delay",
-                    "InheritedType": 6
-                  }
-                ],
-                "InheritedType": 10
-              }
-            ],
-            "InheritedType": 4
           }
         ],
         "saved_objtypeKey": "SCREEN"
@@ -5005,8 +4933,8 @@
     "shape": "RECTANGLE",
     "multilang": "DISABLE",
     "description": "This example project features an extremely simplified yet visually appealing UI, designed to perform well even on MCUs with low flash and memory resources.",
-    "board": "CMake/Eclipse/VScode with SDL for development on PC",
-    "board_version": "v2.0.2",
+    "board": "ESP-BOX",
+    "board_version": "2.0.0",
     "editor_version": "1.5.1",
     "image": "",
     "export_temp_image": false,
@@ -5021,7 +4949,7 @@
     "uiExportFolderPath": "/home/chris/repos/EspMeltingFurnace/main/ui",
     "projectExportFolderPath": "/home/chris/repos/EspMeltingFurnace/SquareLine",
     "custom_variable_prefix": "uic",
-    "backup_cnt": 104,
+    "backup_cnt": 107,
     "autosave_cnt": 0,
     "group_color_cnt": 0,
     "lvgl_version": "9.1.0",
@@ -5038,7 +4966,7 @@
     "drive_fatfs_path": "",
     "naming": "",
     "naming_force_lowercase": false,
-    "nidcnt": 1000277,
+    "nidcnt": 1000287,
     "BitDepth": 16,
     "Name": "Smart_Gadget"
   }

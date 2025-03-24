@@ -10,3 +10,7 @@ def OnSetTempChanged(event_struct):
 def OnToggleStartStop(event_struct):
     return
 
+
+def ui_event_Screen(event_struct):
+    return
+
