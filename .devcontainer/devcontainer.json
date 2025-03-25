@@ -1,0 +1,54 @@
+{
+    "name": "esp-idf",
+    "build": {
+      "dockerfile": "Dockerfile",
+      "args": {
+        // Choose ESP_BOARD: [esp32, esp32c3, esp32s2, esp32s3, all]
+        "ESP_BOARD": "esp32",
+        // Choose ESP_IDF_VERSION: esp-idf branch
+        "ESP_IDF_VERSION": "release/v5.2"
+      },
+      "runArgs": [
+        "--env-file",
+        "${localWorkspaceFolder}/.devcontainer/.env"
+      ],
+    },
+    "customizations": {
+      "vscode": {
+        "settings": {
+          "editor.formatOnPaste": true,
+          "editor.formatOnSave": true,
+          "editor.formatOnSaveMode": "modifications",
+          "editor.formatOnType": true,
+          "idf.espIdfPath": "${env:IDF_PATH}",
+          "idf.toolsPath": "${env:IDF_TOOLS_PATH}",
+          "idf.pythonBinPath": "${env:IDF_PYTHON_ENV_PATH}/bin/python",
+          "idf.customExtraPaths": "${env:PATH}"
+        },
+        "extensions": [
+          "mutantdino.resourcemonitor",
+          "yzhang.markdown-all-in-one",
+          "espressif.esp-idf-extension",
+          "webfreak.debug",
+          "actboy168.tasks",
+          "ms-vscode.cpptools"
+        ]
+      }
+    },
+    "forwardPorts": [
+      9012,
+      9333,
+      8000
+    ],
+    "workspaceMount": "source=${localWorkspaceFolder},target=/home/esp/workspace,type=bind,consistency=cached",
+    "workspaceFolder": "/home/esp/workspace/",
+    "mounts": [
+      "source=/dev/,target=/dev/,type=bind,consistency=consistent"
+    ],
+    "runArgs": [
+      "--privileged"
+    ],
+    "features": {},
+    "postAttachCommand": " service udev restart"
+    // "postAttachCommand": "sudo service udevd restart"
+  }
