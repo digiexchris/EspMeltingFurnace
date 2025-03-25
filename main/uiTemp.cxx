@@ -24,16 +24,16 @@ TempUI::TempUI(Callback onSetTempChanged, Callback onToggleStartStop)
 		ESP_LOGI(TAG, "fatal error in app_lvgl_init");
 		esp_restart();
 	}
-	
+
 	// Initialize touch before UI setup
 	ESP_ERROR_CHECK(touch_init(&tp));
 	touch_cfg.disp = lvgl_display;
 	touch_cfg.handle = tp;
 	lvgl_port_add_touch(&touch_cfg);
-	
+
 	lv_theme_t *theme = lv_theme_simple_init(lvgl_display);
 	lv_disp_set_theme(lvgl_display, theme);
-	
+
 	printf("ui_Temp_screen_init\n");
 	ui_Temp = lv_obj_create(NULL);
 	lv_obj_remove_flag(ui_Temp, LV_OBJ_FLAG_SCROLLABLE); /// Flags
@@ -114,7 +114,7 @@ TempUI::TempUI(Callback onSetTempChanged, Callback onToggleStartStop)
 												 LV_OBJ_FLAG_SCROLL_MOMENTUM |
 												 LV_OBJ_FLAG_SCROLL_CHAIN));
 
-	lv_obj_set_style_bg_color(ui_OnOff, lv_color_hex(0x00BC4A), LV_PART_MAIN);
+	lv_obj_set_style_bg_color(ui_OnOff, lv_color_hex(onOffStoppedColor), LV_PART_MAIN);
 	lv_obj_set_style_bg_opa(ui_OnOff, 255, LV_PART_MAIN);
 
 	ui_OnOffButtonLabel = lv_label_create(ui_OnOff);
@@ -179,11 +179,13 @@ void TempUI::ui_event_OnOff(lv_event_t *e)
 		{
 			tempUI->started = false;
 			lv_label_set_text(tempUI->ui_OnOffButtonLabel, "Start");
+			lv_obj_set_style_bg_color(tempUI->ui_OnOff, lv_color_hex(onOffStoppedColor), LV_PART_MAIN);
 		}
 		else
 		{
 			tempUI->started = true;
 			lv_label_set_text(tempUI->ui_OnOffButtonLabel, "Stop");
+			lv_obj_set_style_bg_color(tempUI->ui_OnOff, lv_color_hex(onOffRunningColor), LV_PART_MAIN);
 		}
 		lvgl_port_unlock();
 

@@ -41,6 +41,9 @@ private:
 	lv_obj_t *ui_OnOff;
 	lv_obj_t *ui_OnOffButtonLabel;
 
+	static constexpr int onOffStoppedColor = 0x00BC00;
+	static constexpr int onOffRunningColor = 0xBC0000;
+
 	bool started = false;
 	int currentTemp = 10;
 	int setTemp = 10;

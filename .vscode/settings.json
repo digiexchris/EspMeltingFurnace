@@ -8,6 +8,7 @@
         "lv_version.h": "c",
         "lv_init.h": "c",
         "lv_mem.h": "c",
-        "esp_lcd_panel_vendor.h": "c"
+        "esp_lcd_panel_vendor.h": "c",
+        "touch.h": "c"
     }
 }

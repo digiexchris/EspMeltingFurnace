@@ -8,5 +8,5 @@ idf_component_register(
     SRCS ${app_sources}
     INCLUDE_DIRS "." 
     #"${CMAKE_CURRENT_SOURCE_DIR}/../include"
-    REQUIRES esp_lcd driver
+    REQUIRES esp_lcd driver max31856
 )
