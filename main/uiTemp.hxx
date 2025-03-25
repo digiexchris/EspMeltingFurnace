@@ -18,14 +18,52 @@ public:
 	lv_obj_t *GetSetTempLabel() { return ui_SetTemp; }
 	lv_obj_t *GetOnOffButton() { return ui_OnOff; }
 
-	void SetCurrentTemp(int temp) { currentTemp = temp; }
-	int GetSetTemp() { return setTemp; }
+	void SetError(bool error)
+	{
+		lvgl_port_lock(0);
+		if (error)
+		{
+			Stop();
+			lv_obj_set_style_bg_color(ui_Temp, lv_color_hex(0xFF0000), LV_PART_MAIN);
+			lv_label_set_text(ui_OnOffButtonLabel, "Error");
+			errored = true;
+		}
+		else
+		{
+			lv_obj_set_style_bg_color(ui_Temp, lv_color_hex(0x000000), LV_PART_MAIN);
+			lv_label_set_text(ui_OnOffButtonLabel, "Start");
+			errored = false;
+		}
+		lvgl_port_unlock();
+	}
+
+	bool IsError()
+	{
+		return errored;
+	}
+
+	void SetCurrentTemp(int temp)
+	{
+		currentTemp = temp;
+		UpdateTempLabel(ui_CurrentTemp, currentTemp);
+	}
+
+	void SetTargetTemp(int value)
+	{
+		lvgl_port_lock(0);
+		setTemp = value;
+		UpdateTempLabel(ui_SetTemp, setTemp);
+		lvgl_port_unlock();
+	}
+
+	int GetTargetTemp() { return setTemp; }
 	bool IsStarted() { return started; }
 	void Stop() { started = false; }
 	void Start() { started = true; }
 	static TempUI *GetInstance() { return instance; }
 
 private:
+	bool errored = false;
 	esp_lcd_panel_io_handle_t lcd_io;
 	esp_lcd_panel_handle_t lcd_panel;
 	esp_lcd_touch_handle_t tp;
@@ -68,18 +106,6 @@ private:
 		lvgl_port_lock(0);
 		lv_label_set_text(label, text_buffer);
 		lvgl_port_unlock();
-	}
-
-	void UpdateCurrentTemp(int value)
-	{
-		currentTemp = value;
-		UpdateTempLabel(ui_CurrentTemp, currentTemp);
-	}
-
-	void UpdateSetTemp(int value)
-	{
-		setTemp = value;
-		UpdateTempLabel(ui_SetTemp, setTemp);
 	}
 
 	void UpdateLowerLimit(int value)

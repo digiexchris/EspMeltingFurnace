@@ -127,8 +127,8 @@ TempUI::TempUI(Callback onSetTempChanged, Callback onToggleStartStop)
 	lv_obj_add_event_cb(ui_Arc1, ui_event_Arc1, LV_EVENT_ALL, NULL);
 	lv_obj_add_event_cb(ui_OnOff, ui_event_OnOff, LV_EVENT_CLICKED, NULL);
 
-	UpdateCurrentTemp(currentTemp);
-	UpdateSetTemp(setTemp);
+	SetCurrentTemp(currentTemp);
+	SetTargetTemp(setTemp);
 	UpdateLowerLimit(lowerLimit);
 	UpdateUpperLimit(upperLimit);
 
@@ -157,7 +157,7 @@ void TempUI::ui_event_Arc1(lv_event_t *e)
 		if (tempUI->setTemp != temp)
 		{
 			tempUI->setTemp = temp;
-			tempUI->UpdateSetTemp(tempUI->setTemp);
+			tempUI->SetTargetTemp(tempUI->setTemp);
 		}
 
 		if (tempUI->onSetTempChanged)
