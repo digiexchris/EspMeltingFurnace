@@ -10,5 +10,6 @@
         "lv_mem.h": "c",
         "esp_lcd_panel_vendor.h": "c",
         "touch.h": "c"
-    }
+    },
+    "idf.enableCCache": true
 }
