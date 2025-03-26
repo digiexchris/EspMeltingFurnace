@@ -1,4 +1,5 @@
 #include "uiTemp.hxx"
+#include "SPIBus.hxx"
 #include "esp_check.h"
 #include "esp_log.h"
 #include "lcd.h"
@@ -10,8 +11,8 @@ static const char *TAG = "TempUI";
 // Define the static instance variable
 TempUI *TempUI::instance = nullptr;
 
-TempUI::TempUI(Callback onSetTempChanged, Callback onToggleStartStop)
-	: lcd_io(nullptr), lcd_panel(nullptr), tp(nullptr), lvgl_display(nullptr), ui_Temp(nullptr), ui_Arc1(nullptr), ui_CurrentTemp(nullptr), ui_SetTemp(nullptr), ui_LowerLimit(nullptr), ui_UpperLimit(nullptr), ui_OnOff(nullptr), ui_OnOffButtonLabel(nullptr),
+TempUI::TempUI(SPIBusManager *aBusManager, Callback onSetTempChanged, Callback onToggleStartStop)
+	: myBusManager(aBusManager), lcd_io(nullptr), lcd_panel(nullptr), tp(nullptr), lvgl_display(nullptr), ui_Temp(nullptr), ui_Arc1(nullptr), ui_CurrentTemp(nullptr), ui_SetTemp(nullptr), ui_LowerLimit(nullptr), ui_UpperLimit(nullptr), ui_OnOff(nullptr), ui_OnOffButtonLabel(nullptr),
 	  onSetTempChanged(onSetTempChanged), onToggleStartStop(onToggleStartStop)
 {
 	instance = this;
@@ -26,10 +27,10 @@ TempUI::TempUI(Callback onSetTempChanged, Callback onToggleStartStop)
 	}
 
 	// Initialize touch before UI setup
-	// ESP_ERROR_CHECK(touch_init(&tp));
-	// touch_cfg.disp = lvgl_display;
-	// touch_cfg.handle = tp;
-	// lvgl_port_add_touch(&touch_cfg);
+	ESP_ERROR_CHECK(touch_init(SPI3_HOST, myBusManager->getMutex(), &tp));
+	touch_cfg.disp = lvgl_display;
+	touch_cfg.handle = tp;
+	lvgl_port_add_touch(&touch_cfg);
 
 	lv_theme_t *theme = lv_theme_simple_init(lvgl_display);
 	lv_disp_set_theme(lvgl_display, theme);

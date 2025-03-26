@@ -1,1 +1,4 @@
 
+[submodule "components/max31856-espidf"]
+	path = components/max31856-espidf
+	url = https://github.com/digiexchris/max31856-espidf

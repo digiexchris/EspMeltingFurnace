@@ -5,11 +5,14 @@
 #include "lcd.h"
 #include "touch.h"
 
+#include "SPIBus.hxx"
+
 class TempUI
 {
 public:
 	using Callback = void (*)(lv_event_t *);
-	TempUI(Callback onSetTempChanged = nullptr, Callback onToggleStartStop = nullptr);
+
+	TempUI(SPIBusManager *aBusManager, Callback onSetTempChanged = nullptr, Callback onToggleStartStop = nullptr);
 	~TempUI();
 
 	// Getter methods for UI elements that might need to be accessed externally
@@ -64,6 +67,7 @@ public:
 
 private:
 	bool errored = false;
+	SPIBusManager *myBusManager;
 	esp_lcd_panel_io_handle_t lcd_io;
 	esp_lcd_panel_handle_t lcd_panel;
 	esp_lcd_touch_handle_t tp;

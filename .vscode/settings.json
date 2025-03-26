@@ -9,7 +9,8 @@
         "lv_init.h": "c",
         "lv_mem.h": "c",
         "esp_lcd_panel_vendor.h": "c",
-        "touch.h": "c"
+        "touch.h": "c",
+        "functional": "cpp"
     },
     "idf.enableCCache": true
 }

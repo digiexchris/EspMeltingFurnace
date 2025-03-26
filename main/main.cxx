@@ -25,7 +25,9 @@ extern "C"
 #define TAG "MeltingFurnace"
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
-#include "max31856.hxx"
+#include "tempController.hxx"
+
+#include "SPIBus.hxx"
 
 /* available pins:
 CDS sensor: 34
@@ -59,9 +61,9 @@ bool isInRange(int value, int min, int max)
 
 extern "C" void app_main(void)
 {
-	TempUI *ui = new TempUI();
-
-	MAX31856 thermocouple(max31856_thermocoupletype_t::MAX31856_TCTYPE_K, SPI3_HOST, GPIO_NUM_27);
+	SPIBusManager *spi3Manager = new SPIBusManager(SPI3_HOST);
+	TempUI *ui = new TempUI(spi3Manager);
+	TempController controller(ui, spi3Manager);
 
 	// Configure GPIO 26 as an output for SSR control
 	gpio_config_t io_conf = {};
@@ -76,7 +78,7 @@ extern "C" void app_main(void)
 	// Ensure the heater is initially off
 	gpio_set_level(SSR_PIN, 0);
 
-	int lastTemp = -1;
+	// int lastTemp = -1;
 
 	while (42)
 	{
