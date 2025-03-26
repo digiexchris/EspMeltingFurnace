@@ -60,14 +60,30 @@ MAX31856::MAX31856(max31856_thermocoupletype_t type, spi_host_device_t host_id, 
 	ret = spi_bus_add_device(HSPI_HOST, &devcfg, &this->spi_handle);
 	ESP_ERROR_CHECK(ret);
 
-	// Assert on All Faults
-	writeRegister(MAX31856_MASK_REG, 0x00);
-	uint8_t cr0_val = readRegister(MAX31856_CR0_REG);
-	cr0_val |= MAX31856_CR0_FAULTCLR; // Set the FAULTCLR bit
-	writeRegister(MAX31856_CR0_REG, cr0_val);
+	// Set the MASK to 0x00 to enable all fault detection
+	writeRegister(MAX31856_MASK_REG, 0xFF);
+
+	// Clear any existing faults
+	// uint8_t cr0_val = readRegister(MAX31856_CR0_REG);
+	// cr0_val |= MAX31856_CR0_FAULTCLR; // Set the FAULTCLR bit
+	// writeRegister(MAX31856_CR0_REG, cr0_val);
 
 	// Open Circuit Detection
-	writeRegister(MAX31856_CR0_REG, MAX31856_CR0_OCFAULT0);
+	// writeRegister(MAX31856_CR0_REG, MAX31856_CR0_OCFAULT0);
+
+	// Set wide temperature fault thresholds to avoid false triggers
+	// setColdJunctionFaultThreshholds(-40, 140); // Wide range for Cold Junction
+	// setTempFaultThreshholds(-40, 1360);		   // Wide range for Thermocouple
+
+	// Log the fault status after initialization to verify if our fix worked
+	uint8_t fault = readRegister(MAX31856_SR_REG);
+	ESP_LOGI(TAG, "Fault register after setup: 0x%02X", fault);
+
+	// Read back the threshold registers to verify they were set correctly
+	uint8_t cjhf = readRegister(MAX31856_CJHF_REG);
+	uint8_t cjlf = readRegister(MAX31856_CJLF_REG);
+	ESP_LOGI(TAG, "Cold Junction High Threshold: 0x%02X (%d°C)", cjhf, static_cast<int8_t>(cjhf));
+	ESP_LOGI(TAG, "Cold Junction Low Threshold: 0x%02X (%d°C)", cjlf, static_cast<int8_t>(cjlf));
 
 	max31856_result = {
 		.spi = this->spi_handle,
@@ -76,6 +92,8 @@ MAX31856::MAX31856(max31856_thermocoupletype_t type, spi_host_device_t host_id, 
 	xTaskCreate(&thermocoupleTask, "thermocouple_task", 2048, this, 5, NULL);
 	xTaskCreate(&receiverTask, "receiver_task", 2048, this, 5, NULL);
 }
+
+// Diagnostic function removed
 
 void MAX31856::thermocoupleTask(void *pvParameter)
 {
@@ -86,7 +104,7 @@ void MAX31856::thermocoupleTask(void *pvParameter)
 
 	while (42)
 	{
-		instance->readFault(true);
+		// instance->readFault(true);
 		instance->readColdJunction();
 		instance->readTemperature();
 		xQueueSend(instance->thermocouple_queue, &instance->max31856_result, (TickType_t)0);
@@ -108,7 +126,7 @@ void MAX31856::receiverTask(void *pvParameter)
 	{
 		xQueueReceive(instance->thermocouple_queue, &max31856_result, (TickType_t)(200 / portTICK_PERIOD_MS));
 		printf("Struct Received on Queue:\nCold Junction: %0.2f\nTemperature: %0.2f\n", max31856_result.coldjunction_f, max31856_result.thermocouple_f);
-		printf("Fault: %d\n", max31856_result.fault);
+		// printf("Fault: %d\n", max31856_result.fault);
 		printf("Cold Junction: %0.2f\n", max31856_result.coldjunction_c);
 		printf("Thermocouple: %0.2f\n", max31856_result.thermocouple_c);
 		vTaskDelay(500 / portTICK_PERIOD_MS);
@@ -129,32 +147,47 @@ void MAX31856::setTempFaultThreshholds(float low, float high)
 
 uint8_t MAX31856::readFault(bool log_fault)
 {
+	// Read the fault status register
 	uint8_t fault_val = readRegister(MAX31856_SR_REG);
+
+	// Store the full fault value in the result structure
+	max31856_result.fault = fault_val;
+
+	// Log faults if requested and if any faults exist
 	if (log_fault && fault_val)
 	{
+		// Log all faults including range info
 		if (fault_val & MAX31856_FAULT_CJRANGE)
-			ESP_LOGI(TAG, "Fault: Cold Junction Range");
+			ESP_LOGW(TAG, "Fault: Cold Junction Range");
 		if (fault_val & MAX31856_FAULT_TCRANGE)
-			ESP_LOGI(TAG, "Fault: Thermocouple Range");
+			ESP_LOGW(TAG, "Fault: Thermocouple Range");
 		if (fault_val & MAX31856_FAULT_CJHIGH)
-			ESP_LOGI(TAG, "Fault: Cold Junction High");
+			ESP_LOGW(TAG, "Fault: Cold Junction High");
 		if (fault_val & MAX31856_FAULT_CJLOW)
-			ESP_LOGI(TAG, "Fault: Cold Junction Low");
+			ESP_LOGW(TAG, "Fault: Cold Junction Low");
 		if (fault_val & MAX31856_FAULT_TCHIGH)
-			ESP_LOGI(TAG, "Fault: Thermocouple High");
+			ESP_LOGW(TAG, "Fault: Thermocouple High");
 		if (fault_val & MAX31856_FAULT_TCLOW)
-			ESP_LOGI(TAG, "Fault: Thermocouple Low");
+			ESP_LOGW(TAG, "Fault: Thermocouple Low");
 		if (fault_val & MAX31856_FAULT_OVUV)
-			ESP_LOGI(TAG, "Fault: Over/Under Voltage");
+			ESP_LOGW(TAG, "Fault: Over/Under Voltage");
 		if (fault_val & MAX31856_FAULT_OPEN)
-			ESP_LOGI(TAG, "Fault: Thermocouple Open");
+			ESP_LOGW(TAG, "Fault: Thermocouple Open");
 
+		// Clear the faults
 		uint8_t cr0_val = readRegister(MAX31856_CR0_REG);
 		cr0_val |= MAX31856_CR0_FAULTCLR; // Set the FAULTCLR bit
 		writeRegister(MAX31856_CR0_REG, cr0_val);
-	}
-	max31856_result.fault = fault_val;
 
+		// Read back the fault register to see if they were cleared
+		uint8_t cleared = readRegister(MAX31856_SR_REG);
+		if (cleared)
+		{
+			ESP_LOGI(TAG, "After clear attempt, fault register: 0x%02X", cleared);
+		}
+	}
+
+	// Return the full fault value
 	return fault_val;
 }
 
@@ -265,14 +298,26 @@ max31856_thermocoupletype_t MAX31856::getType()
 
 void MAX31856::setColdJunctionFaultThreshholds(float low, float high)
 {
+	// According to the datasheet, the cold junction temperature register has a resolution
+	// of 0.0625°C per LSB (1/16), so we need to multiply our values by 16
 	low *= 16;
 	high *= 16;
-	int16_t low_int = low;
-	int16_t high_int = high;
-	writeRegister(MAX31856_CJHF_REG, high_int >> 8);
-	writeRegister(MAX31856_CJLF_REG, high_int);
-	writeRegister(MAX31856_CJTH_REG, low_int >> 8);
-	writeRegister(MAX31856_CJTL_REG, low_int);
+
+	// Convert to integers
+	int16_t low_int = static_cast<int16_t>(low);
+	int16_t high_int = static_cast<int16_t>(high);
+
+	// Write the high threshold - the register only takes a single byte
+	// CJHF is a single byte register that takes values from -128°C to +127°C in 1°C steps
+	writeRegister(MAX31856_CJHF_REG, static_cast<uint8_t>(high_int / 16));
+
+	// Write the low threshold - the register only takes a single byte
+	// CJLF is a single byte register that takes values from -128°C to +127°C in 1°C steps
+	writeRegister(MAX31856_CJLF_REG, static_cast<uint8_t>(low_int / 16));
+
+	// Log the settings
+	ESP_LOGI(TAG, "Cold Junction Thresholds set: Low=%0.2f°C, High=%0.2f°C",
+			 static_cast<float>(low_int) / 16.0, static_cast<float>(high_int) / 16.0);
 }
 
 void MAX31856::writeRegister(uint8_t address, uint8_t data)
