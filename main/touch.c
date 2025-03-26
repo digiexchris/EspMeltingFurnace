@@ -13,6 +13,7 @@
 
 #include "hardware.h"
 #include "touch.h"
+#include "spi_port.h"  // For SPI3 bus mutex functions
 
 static uint16_t map(uint16_t n, uint16_t in_min, uint16_t in_max, uint16_t out_min, uint16_t out_max)
 {
@@ -28,6 +29,14 @@ static void process_coordinates(esp_lcd_touch_handle_t tp, uint16_t *x, uint16_t
 
 esp_err_t touch_init(esp_lcd_touch_handle_t *tp)
 {
+	esp_err_t ret;
+	
+	// Initialize the SPI3 bus mutex first
+	ret = spi3_bus_mutex_init();
+	if (ret != ESP_OK) {
+		ESP_LOGE("TOUCH", "Failed to initialize SPI3 mutex");
+		return ret;
+	}
 	esp_lcd_panel_io_handle_t tp_io_handle = NULL;
 
 	const esp_lcd_panel_io_spi_config_t tp_io_config = {.cs_gpio_num = TOUCH_CS,
@@ -70,10 +79,35 @@ esp_err_t touch_init(esp_lcd_touch_handle_t *tp)
 									 .process_coordinates = process_coordinates,
 									 .interrupt_callback = NULL};
 
-	ESP_ERROR_CHECK(spi_bus_initialize(TOUCH_SPI, &buscfg_touch, SPI_DMA_CH_AUTO));
+	// Acquire the SPI3 bus mutex before initializing
+	if (!spi3_bus_take(SPI3_BUS_TIMEOUT_MS)) {
+		ESP_LOGE("TOUCH", "Failed to acquire SPI3 bus during touch initialization");
+		return ESP_ERR_TIMEOUT;
+	}
 
-	ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)TOUCH_SPI, &tp_io_config, &tp_io_handle));
-	ESP_ERROR_CHECK(esp_lcd_touch_new_spi_xpt2046(tp_io_handle, &tp_cfg, tp));
+	ret = spi_bus_initialize(TOUCH_SPI, &buscfg_touch, SPI_DMA_CH_AUTO);
+	if (ret != ESP_OK) {
+		ESP_LOGE("TOUCH", "Failed to initialize SPI3 bus: %s", esp_err_to_name(ret));
+		spi3_bus_give();
+		return ret;
+	}
+
+	ret = esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)TOUCH_SPI, &tp_io_config, &tp_io_handle);
+	if (ret != ESP_OK) {
+		ESP_LOGE("TOUCH", "Failed to create panel IO: %s", esp_err_to_name(ret));
+		spi3_bus_give();
+		return ret;
+	}
+
+	ret = esp_lcd_touch_new_spi_xpt2046(tp_io_handle, &tp_cfg, tp);
+	if (ret != ESP_OK) {
+		ESP_LOGE("TOUCH", "Failed to initialize touch: %s", esp_err_to_name(ret));
+		spi3_bus_give();
+		return ret;
+	}
+
+	// Release the SPI3 bus mutex after initialization
+	spi3_bus_give();
 
 	return ESP_OK;
 }

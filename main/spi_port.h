@@ -26,16 +26,24 @@ extern "C"
 
 #include "esp_log.h"
 #include "sdkconfig.h"
+#include "freertos/semphr.h"
 
 // Use the same SPI host as defined for touch
 // #define SPI_HOST TOUCH_SPI
 #define PIN_NUM_CS GPIO_NUM_27
 
+	// SPI device functions
 	esp_err_t spi_master_init();
 	uint32_t spi_write(spi_device_handle_t spi, uint8_t *data, uint8_t len);
 	uint32_t spi_read(spi_device_handle_t spi, uint8_t *data, uint8_t len);
+	
+	// SPI3 bus mutex functions
+	esp_err_t spi3_bus_mutex_init(void);
+	bool spi3_bus_take(uint32_t timeout_ms);
+	void spi3_bus_give(void);
 
 	extern spi_device_handle_t spi_dev;
+	extern SemaphoreHandle_t spi3_bus_mutex;
 
 #ifdef __cplusplus
 }

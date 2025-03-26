@@ -38,3 +38,6 @@
 #define TOUCH_DC (gpio_num_t) GPIO_NUM_NC
 #define TOUCH_RST (gpio_num_t) GPIO_NUM_NC
 #define TOUCH_IRQ (gpio_num_t) GPIO_NUM_36
+
+// SPI bus access synchronization
+#define SPI3_BUS_TIMEOUT_MS 1000

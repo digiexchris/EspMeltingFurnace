@@ -375,10 +375,17 @@ uint32_t Adafruit_MAX31856::readRegister24(uint8_t addr)
 void Adafruit_MAX31856::readRegisterN(uint8_t addr, uint8_t buffer[], uint8_t n)
 {
   uint8_t addr_byte = addr & 0x7F; // MSB=0 for read
+  uint8_t read_buffer[10] = {0}; // MAX buffer size
 
+  // Create a combined transaction: send address + receive data
+  uint8_t send_buffer[1] = {addr_byte};
+  
   // Write the address
-  _write_cb(_spi, &addr_byte, 1);
-
+  _write_cb(_spi, send_buffer, 1);
+  
+  // Delay before read to give chip time to process
+  vTaskDelay(1); // 1ms delay
+  
   // Now read the requested bytes
   _read_cb(_spi, buffer, n);
 }
