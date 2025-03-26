@@ -23,9 +23,9 @@ extern "C"
 #include "uiTemp.hxx"
 
 #define TAG "MeltingFurnace"
-#include "Adafruit_MAX31856.h"
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
+#include "max31856.hxx"
 #include "spi_port.h"
 
 /* available pins:
@@ -48,216 +48,216 @@ Using SPI3 for the MAX31856 thermocouple and TF reader, with 27 on the left pin 
 
 gpio_num_t SSR_PIN = GPIO_NUM_26;
 
-Adafruit_MAX31856 thermocouple;
-
 int temp = 0;
 
 bool heating = false;
 bool errored = false;
 
-float readTemp()
-{
-	// Trigger a one-shot conversion
-	thermocouple.triggerOneShot();
+// float readTemp()
+// {
+// 	// Trigger a one-shot conversion
+// 	thermocouple.triggerOneShot();
 
-	// Wait for conversion to complete (max 250ms)
-	uint32_t start = esp_timer_get_time() / 1000;
-	while (!thermocouple.conversionComplete())
-	{
-		if ((esp_timer_get_time() / 1000) - start > 250)
-		{
-			ESP_LOGE(TAG, "Temperature conversion timeout");
-			return -9999;
-		}
-		vTaskDelay(5 / portTICK_PERIOD_MS);
-	}
+// 	// Wait for conversion to complete (max 250ms)
+// 	uint32_t start = esp_timer_get_time() / 1000;
+// 	while (!thermocouple.conversionComplete())
+// 	{
+// 		if ((esp_timer_get_time() / 1000) - start > 250)
+// 		{
+// 			ESP_LOGE(TAG, "Temperature conversion timeout");
+// 			return -9999;
+// 		}
+// 		vTaskDelay(5 / portTICK_PERIOD_MS);
+// 	}
 
-	// Read the temperature
-	float temp = thermocouple.readThermocoupleTemperature();
-	float cj_temp = thermocouple.readCJTemperature();
+// 	// Read the temperature
+// 	float temp = thermocouple.readThermocoupleTemperature();
+// 	float cj_temp = thermocouple.readCJTemperature();
 
-	// Log temperature readings
-	ESP_LOGD(TAG, "Thermocouple Temperature: %.2f°C", temp);
-	ESP_LOGD(TAG, "Cold Junction Temperature: %.2f°C", cj_temp);
+// 	// Log temperature readings
+// 	ESP_LOGD(TAG, "Thermocouple Temperature: %.2f°C", temp);
+// 	ESP_LOGD(TAG, "Cold Junction Temperature: %.2f°C", cj_temp);
 
-	// Check for any faults
-	uint8_t fault = thermocouple.readFault();
-	if (fault)
-	{
-		ESP_LOGW(TAG, "Fault detected (0x%02X):", fault);
+// 	// Check for any faults
+// 	uint8_t fault = thermocouple.readFault();
+// 	if (fault)
+// 	{
+// 		ESP_LOGW(TAG, "Fault detected (0x%02X):", fault);
 
-		if (fault == 0xFF)
-		{
-			ESP_LOGE(TAG, "Communication error - all bits set (0xFF)");
-			return -9999;
-		}
+// 		if (fault == 0xFF)
+// 		{
+// 			ESP_LOGE(TAG, "Communication error - all bits set (0xFF)");
+// 			return -9999;
+// 		}
 
-		if (fault & MAX31856_FAULT_CJRANGE)
-		{
-			ESP_LOGW(TAG, "Cold Junction Range Fault: %.2f°C", cj_temp);
-		}
-		if (fault & MAX31856_FAULT_TCRANGE)
-		{
-			ESP_LOGW(TAG, "Thermocouple Range Fault: %.2f°C", temp);
-		}
-		if (fault & MAX31856_FAULT_CJHIGH)
-		{
-			ESP_LOGW(TAG, "Cold Junction High Fault: %.2f°C", cj_temp);
-		}
-		if (fault & MAX31856_FAULT_CJLOW)
-		{
-			ESP_LOGW(TAG, "Cold Junction Low Fault: %.2f°C", cj_temp);
-		}
-		if (fault & MAX31856_FAULT_TCHIGH)
-		{
-			ESP_LOGW(TAG, "Thermocouple High Fault: %.2f°C", temp);
-		}
-		if (fault & MAX31856_FAULT_TCLOW)
-		{
-			ESP_LOGW(TAG, "Thermocouple Low Fault: %.2f°C", temp);
-		}
-		if (fault & MAX31856_FAULT_OVUV)
-		{
-			ESP_LOGW(TAG, "Over/Under Voltage Fault");
-		}
-		if (fault & MAX31856_FAULT_OPEN)
-		{
-			ESP_LOGW(TAG, "Thermocouple Open Fault");
-		}
+// 		if (fault & MAX31856_FAULT_CJRANGE)
+// 		{
+// 			ESP_LOGW(TAG, "Cold Junction Range Fault: %.2f°C", cj_temp);
+// 		}
+// 		if (fault & MAX31856_FAULT_TCRANGE)
+// 		{
+// 			ESP_LOGW(TAG, "Thermocouple Range Fault: %.2f°C", temp);
+// 		}
+// 		if (fault & MAX31856_FAULT_CJHIGH)
+// 		{
+// 			ESP_LOGW(TAG, "Cold Junction High Fault: %.2f°C", cj_temp);
+// 		}
+// 		if (fault & MAX31856_FAULT_CJLOW)
+// 		{
+// 			ESP_LOGW(TAG, "Cold Junction Low Fault: %.2f°C", cj_temp);
+// 		}
+// 		if (fault & MAX31856_FAULT_TCHIGH)
+// 		{
+// 			ESP_LOGW(TAG, "Thermocouple High Fault: %.2f°C", temp);
+// 		}
+// 		if (fault & MAX31856_FAULT_TCLOW)
+// 		{
+// 			ESP_LOGW(TAG, "Thermocouple Low Fault: %.2f°C", temp);
+// 		}
+// 		if (fault & MAX31856_FAULT_OVUV)
+// 		{
+// 			ESP_LOGW(TAG, "Over/Under Voltage Fault");
+// 		}
+// 		if (fault & MAX31856_FAULT_OPEN)
+// 		{
+// 			ESP_LOGW(TAG, "Thermocouple Open Fault");
+// 		}
 
-		// If it's a range fault or voltage fault, we can still use the temperature
-		if (fault & (MAX31856_FAULT_OPEN | MAX31856_FAULT_OVUV))
-		{
-			return -9999;
-		}
-	}
+// 		// If it's a range fault or voltage fault, we can still use the temperature
+// 		if (fault & (MAX31856_FAULT_OPEN | MAX31856_FAULT_OVUV))
+// 		{
+// 			return -9999;
+// 		}
+// 	}
 
-	// If temperature is extremely out of range, treat as an error
-	if (temp < -100 || temp > 2000)
-	{
-		ESP_LOGE(TAG, "Temperature reading out of realistic range: %.2f°C", temp);
-		return -9999;
-	}
+// 	// If temperature is extremely out of range, treat as an error
+// 	if (temp < -100 || temp > 2000)
+// 	{
+// 		ESP_LOGE(TAG, "Temperature reading out of realistic range: %.2f°C", temp);
+// 		return -9999;
+// 	}
 
-	return temp;
-}
+// 	return temp;
+// }
 
 bool isInRange(int value, int min, int max)
 {
 	return value > min && value < max;
 }
 
-static void temp_task(void *args)
-{
-	const int NUM_SAMPLES = 10;
-	float samples[NUM_SAMPLES];
-	int sampleIndex = 0;
+// static void temp_task(void *args)
+// {
+// 	const int NUM_SAMPLES = 10;
+// 	float samples[NUM_SAMPLES];
+// 	int sampleIndex = 0;
 
-	while (1)
-	{
-		vTaskDelay(100 * portTICK_PERIOD_MS);
+// 	while (1)
+// 	{
+// 		vTaskDelay(100 * portTICK_PERIOD_MS);
 
-		auto ftemp = readTemp();
-		ESP_LOGD(TAG, "Read temperature: %.2f", ftemp);
+// 		auto ftemp = readTemp();
+// 		ESP_LOGD(TAG, "Read temperature: %.2f", ftemp);
 
-		int temp = static_cast<int>(readTemp());
+// 		int temp = static_cast<int>(readTemp());
 
-		ESP_LOGD(TAG, "Casted Temp = %d", temp);
+// 		ESP_LOGD(TAG, "Casted Temp = %d", temp);
 
-		// if (temp != -9999)
-		// {
-		samples[sampleIndex] = temp;
-		sampleIndex = (sampleIndex + 1) % NUM_SAMPLES;
+// 		// if (temp != -9999)
+// 		// {
+// 		samples[sampleIndex] = temp;
+// 		sampleIndex = (sampleIndex + 1) % NUM_SAMPLES;
 
-		float sum = 0;
-		for (int i = 0; i < NUM_SAMPLES; i++)
-		{
-			sum += samples[i];
-		}
-		float average = sum / NUM_SAMPLES;
+// 		float sum = 0;
+// 		for (int i = 0; i < NUM_SAMPLES; i++)
+// 		{
+// 			sum += samples[i];
+// 		}
+// 		float average = sum / NUM_SAMPLES;
 
-		if (fabs(average - temp) > 5)
-		{
-			temp = static_cast<int>(average);
-		}
-	}
-	// else
-	// {
-	// 	printf("Error reading temperature\n");
-	// 	errored = true;
-	// }
-}
+// 		if (fabs(average - temp) > 5)
+// 		{
+// 			temp = static_cast<int>(average);
+// 		}
+// 	}
+// 	// else
+// 	// {
+// 	// 	printf("Error reading temperature\n");
+// 	// 	errored = true;
+// 	// }
+// }
 
 extern "C" void app_main(void)
 {
 	TempUI *ui = new TempUI();
 
-	ESP_ERROR_CHECK(spi_master_init());
-	ESP_LOGI(TAG, "SPI initialized successfully");
+	MAX31856 thermocouple(max31856_thermocoupletype_t::MAX31856_TCTYPE_K, SPI3_HOST, GPIO_NUM_27);
 
-	ESP_ERROR_CHECK(thermocouple.begin(spi_read, spi_write, spi_dev));
-	ESP_LOGI(TAG, "MAX31856 begin successful");
+	// ESP_ERROR_CHECK(spi_master_init());
+	// ESP_LOGI(TAG, "SPI initialized successfully");
 
-	// Read fault register after initialization
-	uint8_t fault = thermocouple.readFault();
-	ESP_LOGI(TAG, "Initial fault register: 0x%02X", fault);
+	// ESP_ERROR_CHECK(thermocouple.begin(spi_read, spi_write, spi_dev));
+	// ESP_LOGI(TAG, "MAX31856 begin successful");
 
-	thermocouple.setThermocoupleType(MAX31856_TCTYPE_K);
-	ESP_LOGI(TAG, "Thermocouple type set to K");
+	// // Read fault register after initialization
+	// uint8_t fault = thermocouple.readFault();
+	// ESP_LOGI(TAG, "Initial fault register: 0x%02X", fault);
 
-	thermocouple.setConversionMode(MAX31856_ONESHOT);
-	ESP_LOGI(TAG, "Conversion mode set to one-shot");
+	// thermocouple.setThermocoupleType(MAX31856_TCTYPE_K);
+	// ESP_LOGI(TAG, "Thermocouple type set to K");
 
-	thermocouple.setNoiseFilter(MAX31856_NOISE_FILTER_60HZ);
-	ESP_LOGI(TAG, "Noise filter set to 60Hz");
+	// thermocouple.setConversionMode(MAX31856_ONESHOT);
+	// ESP_LOGI(TAG, "Conversion mode set to one-shot");
 
-	// Read fault register again
-	fault = thermocouple.readFault();
-	ESP_LOGI(TAG, "Fault register after setup: 0x%02X", fault);
+	// thermocouple.setNoiseFilter(MAX31856_NOISE_FILTER_60HZ);
+	// ESP_LOGI(TAG, "Noise filter set to 60Hz");
 
-	ESP_LOGD(TAG, "Thermocouple type: %s",
-			 [&]() -> const char *
-			 {
-				 switch (thermocouple.getThermocoupleType())
-				 {
-				 case MAX31856_TCTYPE_B:
-					 return "B Type";
-				 case MAX31856_TCTYPE_E:
-					 return "E Type";
-				 case MAX31856_TCTYPE_J:
-					 return "J Type";
-				 case MAX31856_TCTYPE_K:
-					 return "K Type";
-				 case MAX31856_TCTYPE_N:
-					 return "N Type";
-				 case MAX31856_TCTYPE_R:
-					 return "R Type";
-				 case MAX31856_TCTYPE_S:
-					 return "S Type";
-				 case MAX31856_TCTYPE_T:
-					 return "T Type";
-				 case MAX31856_VMODE_G8:
-					 return "Voltage x8 Gain mode";
-				 case MAX31856_VMODE_G32:
-					 return "Voltage x32 Gain mode";
-				 default:
-					 return "Unknown";
-				 }
-			 }());
+	// // Read fault register again
+	// fault = thermocouple.readFault();
+	// ESP_LOGI(TAG, "Fault register after setup: 0x%02X", fault);
 
-	// set thermocouple internal chip temp thresholds with wider range
-	thermocouple.setColdJunctionFaultThreshholds(-20, 120); // Wider range for CJ
-	ESP_LOGI(TAG, "Cold junction thresholds set to -20°C to 120°C");
+	// ESP_LOGD(TAG, "Thermocouple type: %s",
+	// 		 [&]() -> const char *
+	// 		 {
+	// 			 switch (thermocouple.getThermocoupleType())
+	// 			 {
+	// 			 case MAX31856_TCTYPE_B:
+	// 				 return "B Type";
+	// 			 case MAX31856_TCTYPE_E:
+	// 				 return "E Type";
+	// 			 case MAX31856_TCTYPE_J:
+	// 				 return "J Type";
+	// 			 case MAX31856_TCTYPE_K:
+	// 				 return "K Type";
+	// 			 case MAX31856_TCTYPE_N:
+	// 				 return "N Type";
+	// 			 case MAX31856_TCTYPE_R:
+	// 				 return "R Type";
+	// 			 case MAX31856_TCTYPE_S:
+	// 				 return "S Type";
+	// 			 case MAX31856_TCTYPE_T:
+	// 				 return "T Type";
+	// 			 case MAX31856_VMODE_G8:
+	// 				 return "Voltage x8 Gain mode";
+	// 			 case MAX31856_VMODE_G32:
+	// 				 return "Voltage x32 Gain mode";
+	// 			 default:
+	// 				 return "Unknown";
+	// 			 }
+	// 		 }());
 
-	thermocouple.setTempFaultThreshholds(0, 1400); // Wider range for thermocouple
-	ESP_LOGI(TAG, "Thermocouple thresholds set to 0°C to 1400°C");
+	// // set thermocouple internal chip temp thresholds with wider range
+	// thermocouple.setColdJunctionFaultThreshholds(-20, 120); // Wider range for CJ
+	// ESP_LOGI(TAG, "Cold junction thresholds set to -20°C to 120°C");
 
-	// Read fault register after thresholds
-	fault = thermocouple.readFault();
-	ESP_LOGI(TAG, "Fault register after thresholds: 0x%02X", fault);
-	ESP_LOGI(TAG, "Thermocouple initialized successfully");
+	// thermocouple.setTempFaultThreshholds(0, 1400); // Wider range for thermocouple
+	// ESP_LOGI(TAG, "Thermocouple thresholds set to 0°C to 1400°C");
 
-	xTaskCreate(temp_task, "App/temp", 4 * 1024, NULL, 10, NULL);
+	// // Read fault register after thresholds
+	// fault = thermocouple.readFault();
+	// ESP_LOGI(TAG, "Fault register after thresholds: 0x%02X", fault);
+	// ESP_LOGI(TAG, "Thermocouple initialized successfully");
+
+	// xTaskCreate(temp_task, "App/temp", 4 * 1024, NULL, 10, NULL);
 
 	// Configure GPIO 26 as an output for SSR control
 	gpio_config_t io_conf = {};
@@ -276,33 +276,33 @@ extern "C" void app_main(void)
 
 	while (42)
 	{
-		if (errored)
-		{
-			ESP_LOGI(TAG, "Error reading temperature");
-			ui->SetError(true);
-		}
+		// if (errored)
+		// {
+		// 	ESP_LOGI(TAG, "Error reading temperature");
+		// 	ui->SetError(true);
+		// }
 
-		if (temp != lastTemp)
-		{
-			lastTemp = temp;
-			ESP_LOGI(TAG, "Temperature: %d", temp);
-			ui->SetCurrentTemp(temp);
-		}
+		// if (temp != lastTemp)
+		// {
+		// 	lastTemp = temp;
+		// 	ESP_LOGI(TAG, "Temperature: %d", temp);
+		// 	ui->SetCurrentTemp(temp);
+		// }
 
-		if (ui->IsStarted() && !errored && isInRange(temp, 5, 1360))
-		{
-			if (ui->IsError())
-			{
-				ui->SetError(false);
-			}
-			// run pid
-		}
-		else
-		{
-			gpio_set_level(SSR_PIN, 0);
-			ESP_LOGI(TAG, "Heater OFF if either not started or errored or not in range");
-			ui->SetError(true);
-		}
+		// if (ui->IsStarted() && !errored && isInRange(temp, 5, 1360))
+		// {
+		// 	if (ui->IsError())
+		// 	{
+		// 		ui->SetError(false);
+		// 	}
+		// 	// run pid
+		// }
+		// else
+		// {
+		// 	gpio_set_level(SSR_PIN, 0);
+		// 	ESP_LOGI(TAG, "Heater OFF if either not started or errored or not in range");
+		// 	ui->SetError(true);
+		// }
 
 		vTaskDelay(1000 * portTICK_PERIOD_MS);
 	}

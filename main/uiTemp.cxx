@@ -26,10 +26,10 @@ TempUI::TempUI(Callback onSetTempChanged, Callback onToggleStartStop)
 	}
 
 	// Initialize touch before UI setup
-	ESP_ERROR_CHECK(touch_init(&tp));
-	touch_cfg.disp = lvgl_display;
-	touch_cfg.handle = tp;
-	lvgl_port_add_touch(&touch_cfg);
+	// ESP_ERROR_CHECK(touch_init(&tp));
+	// touch_cfg.disp = lvgl_display;
+	// touch_cfg.handle = tp;
+	// lvgl_port_add_touch(&touch_cfg);
 
 	lv_theme_t *theme = lv_theme_simple_init(lvgl_display);
 	lv_disp_set_theme(lvgl_display, theme);
