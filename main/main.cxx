@@ -26,7 +26,6 @@ extern "C"
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 #include "max31856.hxx"
-#include "spi_port.h"
 
 /* available pins:
 CDS sensor: 34
@@ -188,7 +187,7 @@ bool isInRange(int value, int min, int max)
 
 extern "C" void app_main(void)
 {
-	TempUI *ui = new TempUI();
+	// TempUI *ui = new TempUI();
 
 	MAX31856 thermocouple(max31856_thermocoupletype_t::MAX31856_TCTYPE_K, SPI3_HOST, GPIO_NUM_27);
 

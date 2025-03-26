@@ -62,6 +62,9 @@ MAX31856::MAX31856(max31856_thermocoupletype_t type, spi_host_device_t host_id, 
 
 	// Assert on All Faults
 	writeRegister(MAX31856_MASK_REG, 0x00);
+	uint8_t cr0_val = readRegister(MAX31856_CR0_REG);
+	cr0_val |= MAX31856_CR0_FAULTCLR; // Set the FAULTCLR bit
+	writeRegister(MAX31856_CR0_REG, cr0_val);
 
 	// Open Circuit Detection
 	writeRegister(MAX31856_CR0_REG, MAX31856_CR0_OCFAULT0);
@@ -81,7 +84,7 @@ void MAX31856::thermocoupleTask(void *pvParameter)
 
 	instance->setType(instance->thermocoupleType);
 
-	while (1)
+	while (42)
 	{
 		instance->readFault(true);
 		instance->readColdJunction();
@@ -127,7 +130,7 @@ void MAX31856::setTempFaultThreshholds(float low, float high)
 uint8_t MAX31856::readFault(bool log_fault)
 {
 	uint8_t fault_val = readRegister(MAX31856_SR_REG);
-	if (log_fault)
+	if (log_fault && fault_val)
 	{
 		if (fault_val & MAX31856_FAULT_CJRANGE)
 			ESP_LOGI(TAG, "Fault: Cold Junction Range");
@@ -145,8 +148,13 @@ uint8_t MAX31856::readFault(bool log_fault)
 			ESP_LOGI(TAG, "Fault: Over/Under Voltage");
 		if (fault_val & MAX31856_FAULT_OPEN)
 			ESP_LOGI(TAG, "Fault: Thermocouple Open");
+
+		uint8_t cr0_val = readRegister(MAX31856_CR0_REG);
+		cr0_val |= MAX31856_CR0_FAULTCLR; // Set the FAULTCLR bit
+		writeRegister(MAX31856_CR0_REG, cr0_val);
 	}
 	max31856_result.fault = fault_val;
+
 	return fault_val;
 }
 
