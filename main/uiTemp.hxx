@@ -59,7 +59,7 @@ public:
 		lvgl_port_unlock();
 	}
 
-	int GetTargetTemp() { return setTemp; }
+	int &GetTargetTemp() { return setTemp; }
 	bool IsStarted() { return started; }
 	void Stop() { started = false; }
 	void Start() { started = true; }
