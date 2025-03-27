@@ -32,7 +32,14 @@ TempUI::TempUI(SPIBusManager *aBusManager, Callback onSetTempChanged, Callback o
 	ESP_ERROR_CHECK(touch_init(SPI3_HOST, myBusManager->getMutex(), &tp));
 	touch_cfg.disp = lvgl_display;
 	touch_cfg.handle = tp;
-	lvgl_port_add_touch(&touch_cfg);
+	
+	// Add touch to LVGL and store the resulting indev
+	lv_indev_t *touch_indev = lvgl_port_add_touch(&touch_cfg);
+	if (touch_indev == NULL) {
+		ESP_LOGE(TAG, "Failed to add touch to LVGL");
+	} else {
+		ESP_LOGI(TAG, "Touch successfully added to LVGL");
+	}
 
 	lv_theme_t *theme = lv_theme_simple_init(lvgl_display);
 	lv_disp_set_theme(lvgl_display, theme);

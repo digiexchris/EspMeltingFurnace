@@ -22,12 +22,18 @@ public:
 	TempController(TempUI *aTempUi, SPIBusManager *aBusManager);
 	~TempController();
 
+	MAX31856::Result GetLastResult()
+	{
+		return myLastResult;
+	}
+
 private:
 	TempUI *myTempUi;
 	SPIBusManager *mySpiBusManager;
 	TempController *myInstance;
 	QueueHandle_t myThermocoupleQueue;
 	MAX31856::MAX31856 *myThermocouple;
+	MAX31856::Result myLastResult;
 
 	static void receiverTask(void *pvParameter);
 	static void thermocoupleTask(void *pvParameter);

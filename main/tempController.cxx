@@ -34,8 +34,8 @@ TempController::TempController(TempUI *aTempUi, SPIBusManager *aBusManager) : my
 		assert(false);
 	}
 
-	xTaskCreate(&thermocoupleTask, "thermocouple_task", 2048, this, 5, NULL);
-	xTaskCreate(&receiverTask, "receiver_task", 2048, this, 5, NULL);
+	xTaskCreate(&thermocoupleTask, "thermocouple_task", 2048, this, 6, NULL);
+	xTaskCreate(&receiverTask, "receiver_task", 2048, this, 6, NULL);
 }
 
 void TempController::thermocoupleTask(void *pvParameter)
@@ -76,6 +76,7 @@ void TempController::receiverTask(void *pvParameter)
 	};
 
 	float lastTemp = 0;
+	float lastColdTemp = 0;
 
 	while (1)
 	{
@@ -84,10 +85,12 @@ void TempController::receiverTask(void *pvParameter)
 		// // printf("Fault: %d\n", max31856_result.fault);
 		// printf("Cold Junction: %0.2f\n", result.coldjunction_c);
 		// printf("Thermocouple: %0.2f\n", result.thermocouple_c);
-		if (result.thermocouple_c != lastTemp)
+		if (result.thermocouple_c != lastTemp || result.coldjunction_c != lastColdTemp)
 		{
 			lastTemp = result.thermocouple_c;
-			// ESP_LOGI(TCTAG, "Temperature: %0.2f", result.thermocouple_c);
+			lastColdTemp = result.coldjunction_c;
+
+			instance->myLastResult = result;
 			instance->myTempUi->SetCurrentTemp(result.thermocouple_c);
 		}
 

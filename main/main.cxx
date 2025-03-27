@@ -24,6 +24,7 @@ extern "C"
 
 #define TAG "MeltingFurnace"
 #include "driver/gpio.h"
+#include "driver/ledc.h"
 #include "driver/spi_master.h"
 #include "tempController.hxx"
 
@@ -47,16 +48,34 @@ Using SPI3 for the MAX31856 thermocouple and TF reader, with 27 on the left pin 
  Using Pin 35 is input only.
  */
 
-gpio_num_t SSR_PIN = GPIO_NUM_26;
+gpio_num_t SSR_PIN = GPIO_NUM_22;
 
-int temp = 0;
+const int SSR_FULL_PWM = 1023;
+const int SSR_HALF_PWM = 512;
+const int SSR_OFF_PWM = 0;
 
-bool heating = false;
-bool errored = false;
+int SSR_CURRENT_PWM = SSR_OFF_PWM;
 
 bool isInRange(int value, int min, int max)
 {
 	return value > min && value < max;
+}
+
+void setSSRDutyCycle(int duty)
+{
+	// ensure it's in range
+	if (duty < 0)
+	{
+		duty = 0;
+	}
+	else if (duty > SSR_FULL_PWM)
+	{
+		duty = SSR_FULL_PWM;
+	}
+	ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, duty);
+	ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
+
+	SSR_CURRENT_PWM = duty;
 }
 
 extern "C" void app_main(void)
@@ -66,53 +85,85 @@ extern "C" void app_main(void)
 	TempController controller(ui, spi3Manager);
 
 	// Configure GPIO 26 as an output for SSR control
-	gpio_config_t io_conf = {};
-	io_conf.intr_type = GPIO_INTR_DISABLE;		  // Disable interrupt
-	io_conf.mode = GPIO_MODE_OUTPUT;			  // Set as output mode
-	io_conf.pin_bit_mask = (1ULL << SSR_PIN);	  // Bit mask for pin 35
-	io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE; // Disable pull-down
-	io_conf.pull_up_en = GPIO_PULLUP_DISABLE;	  // Disable pull-up
-	ESP_ERROR_CHECK(gpio_config(&io_conf));
-	ESP_LOGI(TAG, "GPIO 26 configured as output for SSR control");
+	// Configure LEDC timer for 1Hz PWM frequency
+	ledc_timer_config_t timer_conf = {};
+	timer_conf.speed_mode = LEDC_LOW_SPEED_MODE;
+	timer_conf.timer_num = LEDC_TIMER_0;
+	timer_conf.duty_resolution = LEDC_TIMER_10_BIT; // 10-bit resolution (0-1023)
+	timer_conf.freq_hz = 1;							// 1 Hz frequency
+	ESP_ERROR_CHECK(ledc_timer_config(&timer_conf));
+
+	// Configure LEDC channel
+	ledc_channel_config_t channel_conf = {};
+	channel_conf.gpio_num = SSR_PIN;
+	channel_conf.speed_mode = LEDC_LOW_SPEED_MODE;
+	channel_conf.channel = LEDC_CHANNEL_0;
+	channel_conf.intr_type = LEDC_INTR_DISABLE;
+	channel_conf.timer_sel = LEDC_TIMER_0;
+	channel_conf.duty = 0; // Start with 0% duty cycle
+	channel_conf.hpoint = 0;
+	ESP_ERROR_CHECK(ledc_channel_config(&channel_conf));
+	ESP_LOGI(TAG, "GPIO 22 configured as output for SSR control");
 
 	// Ensure the heater is initially off
-	gpio_set_level(SSR_PIN, 0);
-
-	// int lastTemp = -1;
+	setSSRDutyCycle(SSR_OFF_PWM);
 
 	vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+	MAX31856::Result result = controller.GetLastResult();
 
 	while (42)
 	{
 		// figure it out later, but the lvgl loop is not polling this correctly so I'm doing it here
 		esp_lcd_touch_read_data(TempUI::tp);
-		//  if (errored)
-		//  {
-		//  	ESP_LOGI(TAG, "Error reading temperature");
-		//  	ui->SetError(true);
-		//  }
 
-		// if (temp != lastTemp)
-		// {
-		// 	lastTemp = temp;
-		// 	ESP_LOGI(TAG, "Temperature: %d", temp);
-		// 	ui->SetCurrentTemp(temp);
-		// }
+		result = controller.GetLastResult();
 
-		// if (ui->IsStarted() && !errored && isInRange(temp, 5, 1360))
-		// {
-		// 	if (ui->IsError())
-		// 	{
-		// 		ui->SetError(false);
-		// 	}
-		// 	// run pid
-		// }
-		// else
-		// {
-		// 	gpio_set_level(SSR_PIN, 0);
-		// 	ESP_LOGI(TAG, "Heater OFF if either not started or errored or not in range");
-		// 	ui->SetError(true);
-		// }
+		if (isInRange(result.thermocouple_c, 5, 1360) && isInRange(result.coldjunction_c, 5, 100))
+		{
+			if (ui->IsError())
+			{
+				ui->SetError(false);
+			}
+
+			if (ui->IsStarted())
+			{
+				if (result.thermocouple_c < ui->GetTargetTemp())
+				{
+					if (SSR_CURRENT_PWM != SSR_HALF_PWM)
+					{
+						setSSRDutyCycle(SSR_HALF_PWM);
+						ESP_LOGI(TAG, "Heater ON");
+					}
+				}
+				else
+				{
+					if (SSR_CURRENT_PWM != SSR_OFF_PWM)
+					{
+						setSSRDutyCycle(SSR_OFF_PWM);
+						ESP_LOGI(TAG, "Heater OFF");
+					}
+				}
+			}
+			else
+			{
+				if (SSR_CURRENT_PWM != SSR_OFF_PWM)
+				{
+					setSSRDutyCycle(SSR_OFF_PWM);
+					ESP_LOGI(TAG, "Heater OFF if not started");
+				}
+			}
+			// run pid
+		}
+		else
+		{
+			ui->SetError(true);
+			if (SSR_CURRENT_PWM != SSR_OFF_PWM)
+			{
+				setSSRDutyCycle(SSR_OFF_PWM);
+				ESP_LOGI(TAG, "Heater OFF if either not started or errored or not in range");
+			}
+		}
 
 		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}
