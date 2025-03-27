@@ -64,13 +64,14 @@ public:
 	void Stop() { started = false; }
 	void Start() { started = true; }
 	static TempUI *GetInstance() { return instance; }
+	static esp_lcd_touch_handle_t tp;
 
 private:
 	bool errored = false;
 	SPIBusManager *myBusManager;
 	esp_lcd_panel_io_handle_t lcd_io;
 	esp_lcd_panel_handle_t lcd_panel;
-	esp_lcd_touch_handle_t tp;
+
 	lvgl_port_touch_cfg_t touch_cfg;
 	lv_display_t *lvgl_display;
 	lv_obj_t *ui_Temp;

@@ -80,13 +80,17 @@ extern "C" void app_main(void)
 
 	// int lastTemp = -1;
 
+	vTaskDelay(1000 / portTICK_PERIOD_MS);
+
 	while (42)
 	{
-		// if (errored)
-		// {
-		// 	ESP_LOGI(TAG, "Error reading temperature");
-		// 	ui->SetError(true);
-		// }
+		// figure it out later, but the lvgl loop is not polling this correctly so I'm doing it here
+		esp_lcd_touch_read_data(TempUI::tp);
+		//  if (errored)
+		//  {
+		//  	ESP_LOGI(TAG, "Error reading temperature");
+		//  	ui->SetError(true);
+		//  }
 
 		// if (temp != lastTemp)
 		// {
@@ -110,7 +114,7 @@ extern "C" void app_main(void)
 		// 	ui->SetError(true);
 		// }
 
-		vTaskDelay(1000 * portTICK_PERIOD_MS);
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}
 	vTaskDelay(portMAX_DELAY);
 }

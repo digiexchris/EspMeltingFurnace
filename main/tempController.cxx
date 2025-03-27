@@ -19,7 +19,7 @@ TempController::TempController(TempUI *aTempUi, SPIBusManager *aBusManager) : my
 	assert(aTempUi != nullptr);
 
 	mySpiBusManager->lock();
-	myThermocouple = new MAX31856::MAX31856(SPI3_HOST);
+	myThermocouple = new MAX31856::MAX31856(SPI3_HOST, false);
 	myThermocouple->AddDevice(MAX31856::ThermocoupleType::MAX31856_TCTYPE_K, GPIO_NUM_27, 0);
 	mySpiBusManager->unlock();
 
@@ -57,7 +57,7 @@ void TempController::thermocoupleTask(void *pvParameter)
 		instance->myThermocouple->read(result, 0);
 		instance->mySpiBusManager->unlock();
 		xQueueSend(instance->myThermocoupleQueue, &result, (TickType_t)0);
-		vTaskDelay(200 / portTICK_PERIOD_MS);
+		vTaskDelay(600 / portTICK_PERIOD_MS);
 	}
 }
 
@@ -75,13 +75,22 @@ void TempController::receiverTask(void *pvParameter)
 		.fault = 0,
 	};
 
+	float lastTemp = 0;
+
 	while (1)
 	{
 		xQueueReceive(instance->myThermocoupleQueue, &result, (TickType_t)(200 / portTICK_PERIOD_MS));
-		printf("Struct Received on Queue:\nCold Junction: %0.2f\nTemperature: %0.2f\n", result.coldjunction_f, result.thermocouple_f);
-		// printf("Fault: %d\n", max31856_result.fault);
-		printf("Cold Junction: %0.2f\n", result.coldjunction_c);
-		printf("Thermocouple: %0.2f\n", result.thermocouple_c);
-		vTaskDelay(500 / portTICK_PERIOD_MS);
+		// printf("Struct Received on Queue:\nCold Junction: %0.2f\nTemperature: %0.2f\n", result.coldjunction_f, result.thermocouple_f);
+		// // printf("Fault: %d\n", max31856_result.fault);
+		// printf("Cold Junction: %0.2f\n", result.coldjunction_c);
+		// printf("Thermocouple: %0.2f\n", result.thermocouple_c);
+		if (result.thermocouple_c != lastTemp)
+		{
+			lastTemp = result.thermocouple_c;
+			// ESP_LOGI(TCTAG, "Temperature: %0.2f", result.thermocouple_c);
+			instance->myTempUi->SetCurrentTemp(result.thermocouple_c);
+		}
+
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}
 }

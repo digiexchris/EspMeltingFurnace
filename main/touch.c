@@ -77,5 +77,7 @@ esp_err_t touch_init(spi_host_device_t host, SemaphoreHandle_t aMutex, esp_lcd_t
 
 	ESP_ERROR_CHECK(esp_lcd_touch_xpt2046_set_spi_mutex(aMutex));
 
+	ESP_LOGI("Touch", "Touch initialized");
+
 	return ESP_OK;
 }

@@ -133,6 +133,7 @@ esp_err_t esp_lcd_touch_new_spi_xpt2046(const esp_lcd_panel_io_handle_t io,
 err:
 	if (ret != ESP_OK)
 	{
+		ESP_LOGE(TAG, "Failed to create XPT2046 touch driver: %s", esp_err_to_name(ret));
 		if (handle)
 		{
 			xpt2046_del(handle);
@@ -163,7 +164,7 @@ static inline esp_err_t xpt2046_read_register(esp_lcd_touch_handle_t tp, uint8_t
 {
 	if (xpt2046_mutex != NULL)
 	{
-		if (xSemaphoreTake(xpt2046_mutex, 100 / portTICK_PERIOD_MS) != pdTRUE)
+		if (xSemaphoreTake(xpt2046_mutex, 500 / portTICK_PERIOD_MS) != pdTRUE)
 		{
 			ESP_LOGE(TAG, "Failed to take SPI mutex");
 			return ESP_FAIL;

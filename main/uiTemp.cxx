@@ -11,8 +11,10 @@ static const char *TAG = "TempUI";
 // Define the static instance variable
 TempUI *TempUI::instance = nullptr;
 
+esp_lcd_touch_handle_t TempUI::tp = NULL;
+
 TempUI::TempUI(SPIBusManager *aBusManager, Callback onSetTempChanged, Callback onToggleStartStop)
-	: myBusManager(aBusManager), lcd_io(nullptr), lcd_panel(nullptr), tp(nullptr), lvgl_display(nullptr), ui_Temp(nullptr), ui_Arc1(nullptr), ui_CurrentTemp(nullptr), ui_SetTemp(nullptr), ui_LowerLimit(nullptr), ui_UpperLimit(nullptr), ui_OnOff(nullptr), ui_OnOffButtonLabel(nullptr),
+	: myBusManager(aBusManager), lcd_io(nullptr), lcd_panel(nullptr), lvgl_display(nullptr), ui_Temp(nullptr), ui_Arc1(nullptr), ui_CurrentTemp(nullptr), ui_SetTemp(nullptr), ui_LowerLimit(nullptr), ui_UpperLimit(nullptr), ui_OnOff(nullptr), ui_OnOffButtonLabel(nullptr),
 	  onSetTempChanged(onSetTempChanged), onToggleStartStop(onToggleStartStop)
 {
 	instance = this;
