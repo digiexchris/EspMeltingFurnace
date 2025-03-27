@@ -84,31 +84,7 @@ extern "C" void app_main(void)
 	TempUI *ui = new TempUI(spi3Manager);
 	TempController controller(ui, spi3Manager);
 
-	// Configure GPIO 26 as an output for SSR control
-	// Configure LEDC timer for 1Hz PWM frequency
-	ledc_timer_config_t timer_conf = {};
-	timer_conf.speed_mode = LEDC_LOW_SPEED_MODE;
-	timer_conf.timer_num = LEDC_TIMER_0;
-	timer_conf.duty_resolution = LEDC_TIMER_10_BIT; // 10-bit resolution (0-1023)
-	timer_conf.freq_hz = 1;							// 1 Hz frequency
-	ESP_ERROR_CHECK(ledc_timer_config(&timer_conf));
-
-	// Configure LEDC channel
-	ledc_channel_config_t channel_conf = {};
-	channel_conf.gpio_num = SSR_PIN;
-	channel_conf.speed_mode = LEDC_LOW_SPEED_MODE;
-	channel_conf.channel = LEDC_CHANNEL_0;
-	channel_conf.intr_type = LEDC_INTR_DISABLE;
-	channel_conf.timer_sel = LEDC_TIMER_0;
-	channel_conf.duty = 0; // Start with 0% duty cycle
-	channel_conf.hpoint = 0;
-	ESP_ERROR_CHECK(ledc_channel_config(&channel_conf));
-	ESP_LOGI(TAG, "GPIO 22 configured as output for SSR control");
-
-	// Ensure the heater is initially off
-	setSSRDutyCycle(SSR_OFF_PWM);
-
-	vTaskDelay(1000 / portTICK_PERIOD_MS);
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
 
 	MAX31856::Result result = controller.GetLastResult();
 
