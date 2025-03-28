@@ -89,7 +89,7 @@ private:
 
 	bool started = false;
 	int currentTemp = 10;
-	int setTemp = 10;
+	int setTemp = 150;
 
 	// Callback functions for setting temperature and toggling start/stop
 	Callback onSetTempChanged;
