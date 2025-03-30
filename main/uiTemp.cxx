@@ -4,18 +4,20 @@
 #include "esp_log.h"
 #include "lcd.h"
 #include "touch.h"
+#include <esp_lcd_touch.h>
+#include <esp_lcd_touch_xpt2046.h>
 #include <stdio.h>
 
 static const char *TAG = "TempUI";
 
+esp_lcd_touch_handle_t TempUI::tp = NULL;
+TaskHandle_t updateTaskHandle = NULL;
+
 // Define the static instance variable
 TempUI *TempUI::instance = nullptr;
 
-esp_lcd_touch_handle_t TempUI::tp = NULL;
-
-TempUI::TempUI(SPIBusManager *aBusManager, Callback onSetTempChanged, Callback onToggleStartStop)
-	: myBusManager(aBusManager), lcd_io(nullptr), lcd_panel(nullptr), lvgl_display(nullptr), ui_Temp(nullptr), ui_Arc1(nullptr), ui_CurrentTemp(nullptr), ui_SetTemp(nullptr), ui_LowerLimit(nullptr), ui_UpperLimit(nullptr), ui_OnOff(nullptr), ui_OnOffButtonLabel(nullptr),
-	  onSetTempChanged(onSetTempChanged), onToggleStartStop(onToggleStartStop)
+TempUI::TempUI(SPIBusManager *aBusManager)
+	: myBusManager(aBusManager), lcd_io(nullptr), lcd_panel(nullptr), lvgl_display(nullptr), ui_Temp(nullptr), ui_Arc1(nullptr), ui_CurrentTemp(nullptr), ui_SetTemp(nullptr), ui_LowerLimit(nullptr), ui_UpperLimit(nullptr), ui_OnOff(nullptr), ui_OnOffButtonLabel(nullptr)
 {
 	instance = this;
 	ESP_ERROR_CHECK(lcd_display_brightness_init());
@@ -28,21 +30,63 @@ TempUI::TempUI(SPIBusManager *aBusManager, Callback onSetTempChanged, Callback o
 		esp_restart();
 	}
 
-	// Initialize touch before UI setup
-	ESP_ERROR_CHECK(touch_init(SPI3_HOST, myBusManager->getMutex(), &tp));
-	touch_cfg.disp = lvgl_display;
-	touch_cfg.handle = tp;
+	// ESP_ERROR_CHECK(touch_init(SPI3_HOST, myBusManager->getMutex(), &tp));
+	// touch_cfg.disp = lvgl_display;
+	// touch_cfg.handle = tp;
+
+	// esp_lcd_panel_io_handle_t tp_io_handle = NULL;
+
+	// const esp_lcd_panel_io_spi_config_t tp_io_config = {.cs_gpio_num = TOUCH_CS,
+	// 													.dc_gpio_num = TOUCH_DC,
+	// 													.spi_mode = 0,
+	// 													.pclk_hz = TOUCH_CLOCK_HZ,
+	// 													.trans_queue_depth = 3,
+	// 													.on_color_trans_done = NULL,
+	// 													.user_ctx = NULL,
+	// 													.lcd_cmd_bits = 8,
+	// 													.lcd_param_bits = 8,
+	// 													.flags = {.dc_low_on_data = 0, .octal_mode = 0, .sio_mode = 0, .lsb_first = 0, .cs_high_active = 0}};
+	// esp_lcd_touch_config_t tp_cfg = {
+	// 	.x_max = LCD_H_RES,
+	// 	.y_max = LCD_V_RES,
+	// 	.rst_gpio_num = TOUCH_RST,
+	// 	//.int_gpio_num = TOUCH_IRQ,
+	// 	.levels = {.reset = 0, .interrupt = 0},
+	// 	.flags =
+	// 		{
+	// 			.swap_xy = false,
+	// 			.mirror_x = LCD_MIRROR_X,
+	// 			.mirror_y = LCD_MIRROR_Y,
+	// 		},
+	// 	.process_coordinates = ProcessTouchCoordinates,
+	// 	.interrupt_callback = NULL};
+
+	// ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI3_HOST, &tp_io_config, &tp_io_handle));
+	// ESP_ERROR_CHECK(esp_lcd_touch_new_spi_xpt2046(tp_io_handle, &tp_cfg, &tp));
+
+	// ESP_ERROR_CHECK(esp_lcd_touch_xpt2046_set_spi_mutex(myBusManager->getMutex()));
+
+	// lv_indev_t *indev = lv_indev_create();
+	// lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+	// lv_indev_set_read_cb(indev, TouchDriverRead);
+	// lv_indev_enable(indev, true); // Enable the input device to process touch events
 
 	// Add touch to LVGL and store the resulting indev
-	lv_indev_t *touch_indev = lvgl_port_add_touch(&touch_cfg);
-	if (touch_indev == NULL)
-	{
-		ESP_LOGE(TAG, "Failed to add touch to LVGL");
-	}
-	else
-	{
-		ESP_LOGI(TAG, "Touch successfully added to LVGL");
-	}
+	// lv_indev_t *touch_indev = lvgl_port_add_touch(&touch_cfg);
+	// if (touch_indev == NULL)
+	// {
+	// 	ESP_LOGE(TAG, "Failed to add touch to LVGL");
+	// }
+	// else
+	// {
+	// 	ESP_LOGI(TAG, "Touch successfully added to LVGL");
+	// }
+
+	// Initialize rotary encoder and toggle switch
+	// InitRotaryEncoder();
+	// InitToggleSwitch();
+
+	lvgl_port_lock(0);
 
 	lv_theme_t *theme = lv_theme_simple_init(lvgl_display);
 	lv_disp_set_theme(lvgl_display, theme);
@@ -149,19 +193,49 @@ TempUI::TempUI(SPIBusManager *aBusManager, Callback onSetTempChanged, Callback o
 
 	lv_disp_load_scr(ui_Temp);
 
+	// Turn on the backlight at maximum brightness
+	ESP_LOGI(TAG, "Turning on backlight");
 	ESP_ERROR_CHECK(lcd_display_brightness_set(75));
+	lv_task_handler();
+	lvgl_port_unlock();
+
+	// xTaskCreate(UpdateTouchTask, "toggle_switch_task", 2 * 2048, this, 5, &updateTaskHandle);
 }
 
 TempUI::~TempUI()
 {
-	// Add cleanup code if necessary
+	if (updateTaskHandle != NULL)
+	{
+		vTaskDelete(updateTaskHandle);
+	}
+
+	// Clean up PCNT resources
+	if (pcnt_unit)
+	{
+		pcnt_unit_stop(pcnt_unit);
+		pcnt_unit_disable(pcnt_unit);
+
+		// Delete channels
+		if (pcnt_chan_a)
+		{
+			pcnt_del_channel(pcnt_chan_a);
+		}
+
+		if (pcnt_chan_b)
+		{
+			pcnt_del_channel(pcnt_chan_b);
+		}
+
+		// Delete unit
+		pcnt_del_unit(pcnt_unit);
+	}
 }
 
 void TempUI::ui_event_Arc1(lv_event_t *e)
 {
 	lv_event_code_t event_code = lv_event_get_code(e);
 	lv_obj_t *target = static_cast<lv_obj_t *>(lv_event_get_target(e));
-
+	ESP_LOGI(TAG, "ui_event_Arc1 event_code: %d", event_code);
 	if (event_code == LV_EVENT_VALUE_CHANGED)
 	{
 		TempUI *tempUI = TempUI::GetInstance();
@@ -169,13 +243,12 @@ void TempUI::ui_event_Arc1(lv_event_t *e)
 		printf("Arc1 value changed: %d\n", temp);
 		if (tempUI->setTemp != temp)
 		{
+			if (tempUI->started)
+			{
+				tempUI->started = false;
+			}
 			tempUI->setTemp = temp;
 			tempUI->SetTargetTemp(tempUI->setTemp);
-		}
-
-		if (tempUI->onSetTempChanged)
-		{
-			tempUI->onSetTempChanged(e);
 		}
 	}
 }
@@ -183,28 +256,80 @@ void TempUI::ui_event_Arc1(lv_event_t *e)
 void TempUI::ui_event_OnOff(lv_event_t *e)
 {
 	lv_event_code_t event_code = lv_event_get_code(e);
-	if (event_code == LV_EVENT_CLICKED)
+
+	switch (event_code)
+	{
+	case LV_EVENT_RELEASED:
 	{
 		TempUI *tempUI = TempUI::GetInstance();
-		printf("OnToggleStartStop\n");
-		lvgl_port_lock(0);
+
 		if (tempUI->started)
 		{
+			lvgl_port_lock(0);
 			tempUI->started = false;
-			lv_label_set_text(tempUI->ui_OnOffButtonLabel, "Start");
+			lv_label_set_text(tempUI->ui_OnOffButtonLabel, "STOPPED");
 			lv_obj_set_style_bg_color(tempUI->ui_OnOff, lv_color_hex(onOffStoppedColor), LV_PART_MAIN);
+			lvgl_port_unlock();
 		}
-		else
-		{
-			tempUI->started = true;
-			lv_label_set_text(tempUI->ui_OnOffButtonLabel, "Stop");
-			lv_obj_set_style_bg_color(tempUI->ui_OnOff, lv_color_hex(onOffRunningColor), LV_PART_MAIN);
-		}
-		lvgl_port_unlock();
+	}
+	break;
+	case LV_EVENT_PRESSED:
+	{
+		TempUI *tempUI = TempUI::GetInstance();
 
-		if (tempUI->onToggleStartStop)
+		if (!tempUI->started)
 		{
-			tempUI->onToggleStartStop(e);
+			lvgl_port_lock(0);
+			tempUI->started = true;
+			lv_label_set_text(tempUI->ui_OnOffButtonLabel, "RUNNING");
+			lv_obj_set_style_bg_color(tempUI->ui_OnOff, lv_color_hex(onOffRunningColor), LV_PART_MAIN);
+			lvgl_port_unlock();
 		}
+	}
+
+	break;
+	default:
+		break;
+	}
+}
+
+void TempUI::Stop()
+{
+	lvgl_port_lock(0);
+	started = false;
+	lv_label_set_text(ui_OnOffButtonLabel, "STOPPED");
+	lv_obj_set_style_bg_color(ui_OnOff, lv_color_hex(onOffStoppedColor), LV_PART_MAIN);
+	lvgl_port_unlock();
+}
+
+void TempUI::Start()
+{
+	lvgl_port_lock(0);
+	started = true;
+	lv_label_set_text(ui_OnOffButtonLabel, "RUNNING");
+	lv_obj_set_style_bg_color(ui_OnOff, lv_color_hex(onOffRunningColor), LV_PART_MAIN);
+	lvgl_port_unlock();
+}
+
+void TempUI::UpdateTouchTask(void *param)
+{
+	TempUI *ui = static_cast<TempUI *>(param);
+
+	while (true)
+	{
+		// Check for task notifications that would wake us up early
+		uint32_t notification_value = 0;
+		if (xTaskNotifyWait(0, ULONG_MAX, &notification_value, 0) == pdTRUE)
+		{
+			ESP_LOGI(TAG, "Task notification received: %lu", notification_value);
+			// Handle different notification types if needed
+			// For example: if (notification_value & NOTIFY_TEMP_CHANGED) { ... }
+		}
+
+		// /esp_lcd_touch_read_data(tp);
+
+		// ESP_LOGI(TAG, "Touch read data");
+		//  Short delay
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}
 }
