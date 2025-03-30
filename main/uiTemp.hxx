@@ -1,18 +1,29 @@
 #pragma once
 
-#include "lvgl.h"
-
-#include "lcd.h"
-#include "touch.h"
-
 #include "SPIBus.hxx"
+#include "driver/gpio.h"
+#include "driver/pulse_cnt.h" // For PCNT peripheral
+#include "esp_check.h"
+#include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "lcd.h"
+#include "lvgl.h"
+// #include "touch.h"
+#include "hardware.h"
+
+// PCNT configurations
+#define PCNT_HIGH_LIMIT 100
+#define PCNT_LOW_LIMIT -100
+
+extern TaskHandle_t updateTaskHandle;
 
 class TempUI
 {
 public:
 	using Callback = void (*)(lv_event_t *);
 
-	TempUI(SPIBusManager *aBusManager, Callback onSetTempChanged = nullptr, Callback onToggleStartStop = nullptr);
+	TempUI(SPIBusManager *aBusManager);
 	~TempUI();
 
 	// Getter methods for UI elements that might need to be accessed externally
@@ -59,20 +70,60 @@ public:
 		lvgl_port_unlock();
 	}
 
-	int &GetTargetTemp() { return setTemp; }
+	int GetTargetTemp() { return setTemp; }
 	bool IsStarted() { return started; }
-	void Stop() { started = false; }
-	void Start() { started = true; }
+	void Stop();
+	void Start();
 	static TempUI *GetInstance() { return instance; }
-	static esp_lcd_touch_handle_t tp;
 
 private:
+	static void UpdateTouchTask(void *param);
+
+	static void ProcessTouchCoordinates(esp_lcd_touch_handle_t tp, uint16_t *x, uint16_t *y, uint16_t *strength, uint8_t *point_num, uint8_t max_point_num)
+	{
+		ESP_LOGI("Touch", "Processing coordinates");
+		*x = map(*x, TOUCH_X_RES_MIN, TOUCH_X_RES_MAX, 0, LCD_H_RES);
+		*y = map(*y, TOUCH_Y_RES_MIN, TOUCH_Y_RES_MAX, 0, LCD_V_RES);
+	}
+
+	static void TouchInterruptCallback(esp_lcd_touch_handle_t th)
+	{
+		// ESP_LOGI("Touch", "Interrupt callback");
+		if (updateTaskHandle)
+		{
+			xTaskNotifyFromISR(updateTaskHandle, 0, eNoAction, NULL);
+		}
+	}
+
+	static void TouchDriverRead(lv_indev_t *drv, lv_indev_data_t *data)
+	{
+		uint16_t x[1];
+		uint16_t y[1];
+		uint16_t strength[1];
+		uint8_t count = 0;
+
+		// Update touch point data.
+		ESP_ERROR_CHECK(esp_lcd_touch_read_data(tp));
+
+		data->state = LV_INDEV_STATE_REL;
+
+		if (esp_lcd_touch_get_coordinates(tp, x, y, strength, &count, 1))
+		{
+			data->point.x = x[0];
+			data->point.y = y[0];
+			data->state = LV_INDEV_STATE_PR;
+		}
+
+		data->continue_reading = false;
+	}
+
 	bool errored = false;
 	SPIBusManager *myBusManager;
 	esp_lcd_panel_io_handle_t lcd_io;
 	esp_lcd_panel_handle_t lcd_panel;
-
 	lvgl_port_touch_cfg_t touch_cfg;
+	static esp_lcd_touch_handle_t tp;
+
 	lv_display_t *lvgl_display;
 	lv_obj_t *ui_Temp;
 
@@ -91,9 +142,6 @@ private:
 	int currentTemp = 10;
 	int setTemp = 150;
 
-	// Callback functions for setting temperature and toggling start/stop
-	Callback onSetTempChanged;
-	Callback onToggleStartStop;
 	static TempUI *instance;
 
 	// Event callback methods
@@ -124,4 +172,22 @@ private:
 		upperLimit = value;
 		UpdateTempLabel(ui_UpperLimit, upperLimit);
 	}
+
+	static uint16_t
+	map(uint16_t n, uint16_t in_min, uint16_t in_max, uint16_t out_min, uint16_t out_max)
+	{
+		uint16_t value = (n - in_min) * (out_max - out_min) / (in_max - in_min);
+		return (value < out_min) ? out_min : ((value > out_max) ? out_max : value);
+	}
+
+	// Rotary encoder variables
+	pcnt_unit_handle_t pcnt_unit;
+	pcnt_channel_handle_t pcnt_chan_a;
+	pcnt_channel_handle_t pcnt_chan_b;
+
+	// Last encoder position
+	int16_t last_encoder_value = 0;
+
+	// Temp change amount per step (can be adjusted)
+	static constexpr int TEMP_CHANGE_AMOUNT = 10; // 10°C per step
 };

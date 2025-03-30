@@ -47,6 +47,38 @@ dependencies:
       registry_url: https://components.espressif.com/
       type: service
     version: 2.5.0
+  espressif/i2c_bus:
+    component_hash: 799dfe7539755576431d3a8970335c230dcfa395af5e5ffd3abe570943bb5c2b
+    dependencies:
+    - name: espressif/cmake_utilities
+      registry_url: https://components.espressif.com
+      require: private
+      version: 0.*
+    - name: idf
+      require: private
+      version: '>=4.0'
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    version: 1.1.0
+  espressif/mcp23017:
+    component_hash: 2f93a15b6e7e00095227387e81c7d11b201982d119eae8f4ad77300462a990b2
+    dependencies:
+    - name: espressif/cmake_utilities
+      registry_url: https://components.espressif.com
+      require: private
+      version: 0.*
+    - name: espressif/i2c_bus
+      registry_url: https://components.espressif.com
+      require: private
+      version: 1.1.*
+    - name: idf
+      require: private
+      version: '>=4.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 0.1.0
   hayschan/autopid_for_esp_idf:
     component_hash: abb01ee57353d22df70c27840ddec00b90544540c9a78ec18932737d7fbb7878
     dependencies: []
@@ -57,7 +89,7 @@ dependencies:
   idf:
     source:
       type: idf
-    version: 5.3.2
+    version: 5.3.1
   lvgl/lvgl:
     component_hash: 096c69af22eaf8a2b721e3913da91918c5e6bf1a762a113ec01f401aa61337a0
     dependencies: []
@@ -69,9 +101,10 @@ direct_dependencies:
 - espressif/esp_lcd_ili9341
 - espressif/esp_lcd_touch
 - espressif/esp_lvgl_port
+- espressif/mcp23017
 - hayschan/autopid_for_esp_idf
 - idf
 - lvgl/lvgl
-manifest_hash: 3469ed9face447737fa8f7d031080b55121302256c6a0ab4181da0ed47eaf074
+manifest_hash: 62e3adc160854f4bdf7c54b0c48656b6d4c6e2b262a917f211946b9b4530cc29
 target: esp32
 version: 2.0.0

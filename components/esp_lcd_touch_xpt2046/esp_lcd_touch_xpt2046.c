@@ -128,6 +128,8 @@ esp_err_t esp_lcd_touch_new_spi_xpt2046(const esp_lcd_panel_io_handle_t io,
 		{
 			esp_lcd_touch_register_interrupt_callback(handle, config->interrupt_callback);
 		}
+
+		ESP_LOGI(TAG, "XPT2046 Interrupt GPIO %d configured", config->int_gpio_num);
 	}
 
 err:
@@ -162,6 +164,8 @@ static esp_err_t xpt2046_del(esp_lcd_touch_handle_t tp)
 
 static inline esp_err_t xpt2046_read_register(esp_lcd_touch_handle_t tp, uint8_t reg, uint16_t *value)
 {
+
+	// ESP_LOGI(TAG, "XPT2046 read register: %02X", reg);
 	if (xpt2046_mutex != NULL)
 	{
 		if (xSemaphoreTake(xpt2046_mutex, 500 / portTICK_PERIOD_MS) != pdTRUE)
