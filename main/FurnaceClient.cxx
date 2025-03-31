@@ -1,13 +1,16 @@
 #include "FurnaceClient.hxx"
+#include "Uart.hxx"
 #include <esp_log.h>
 #include <pl_modbus.h>
 #include <pl_uart.h>
 
 const char *MODBUS_TAG = "ModbusServer";
 
+FurnaceClient *FurnaceClient::myInstance = nullptr;
+
 FurnaceClient::FurnaceClient()
 {
-	myUart = std::make_shared<PL::Uart>(UART_NUM_0);
+	myUart = UARTManager::GetInstance()->GetUart();
 	myClient = new PL::ModbusClient(myUart, PL::ModbusProtocol::rtu, 1);
 	myInstance = this;
 	myCoils = 0;
@@ -29,6 +32,24 @@ FurnaceClient::FurnaceClient()
 	else
 	{
 		ESP_LOGE(MODBUS_TAG, "Failed to read coils");
+	}
+
+	if (myClient->ReadDiscreteInputs(0, 3, &myDiscreteInputs, NULL) == ESP_OK)
+	{
+		ESP_LOGI(MODBUS_TAG, "Discrete inputs read successfully");
+	}
+	else
+	{
+		ESP_LOGE(MODBUS_TAG, "Failed to read discrete inputs");
+	}
+
+	if (myClient->ReadInputRegisters(0, sizeof(myInputRegisters) / sizeof(uint16_t), myInputRegisters, NULL) == ESP_OK)
+	{
+		ESP_LOGI(MODBUS_TAG, "Input registers read successfully");
+	}
+	else
+	{
+		ESP_LOGE(MODBUS_TAG, "Failed to read input registers");
 	}
 
 	ESP_LOGI(MODBUS_TAG, "Modbus server initialized");

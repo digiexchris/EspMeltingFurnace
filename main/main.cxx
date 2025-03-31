@@ -39,6 +39,9 @@
 #include <freertos/task.h>
 #include <stdio.h>
 #include <vector>
+
+#include "FurnaceClient.hxx"
+
 extern "C" void scanI2CBus()
 {
 	// 	ESP_LOGI("SCANNER", "Scanning I2C bus for devices...");
@@ -100,6 +103,8 @@ extern "C" void scanI2CBus()
 extern "C" void app_main(void)
 {
 	// scanI2CBus();
+
+	FurnaceClient::GetInstance();
 	GPIOManager *gpio = new GPIOManager();
 	SPIBusManager *spi3Manager = new SPIBusManager(SPI3_HOST);
 	TempUI *ui = new TempUI(spi3Manager);

@@ -50,7 +50,7 @@ class FurnaceClient
 
 public:
 	FurnaceClient();
-	FurnaceClient *GetInstance();
+	static FurnaceClient *GetInstance();
 
 	uint16_t GetCurrentPWMDutyCycle(); // input register
 	uint16_t GetCurrentTemp();		   // input register
@@ -78,7 +78,7 @@ private:
 	bool ReadInputRegisters();
 	bool WriteHoldingRegisters();
 
-	FurnaceClient *myInstance = nullptr;
+	static FurnaceClient *myInstance;
 	std::shared_ptr<PL::Uart> myUart;
 	PL::ModbusClient *myClient;
 	Coils myCoils = 0;
