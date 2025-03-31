@@ -12,8 +12,8 @@
 
 static const char *GPIOTAG = "GPIO";
 
-// Define the static queue handle
 QueueHandle_t GPIOManager::myEventQueue = nullptr;
+GPIOManager *GPIOManager::myInstance = nullptr;
 
 // Event types for the queue
 enum EventType
@@ -30,6 +30,7 @@ struct InterruptEvent
 
 GPIOManager::GPIOManager()
 {
+	myInstance = this;
 	ESP_LOGI(GPIOTAG, "Initializing GPIO Manager");
 	myI2CConfig = {
 		.mode = I2C_MODE_MASTER,
@@ -105,6 +106,11 @@ void GPIOManager::setButton(lv_obj_t *button)
 	myButton = button;
 }
 
+void GPIOManager::setEmergencyRelay(bool value)
+{
+	setMcpPortBPin(MCP23017_EMERGENCY_RELAY, value);
+}
+
 void GPIOManager::configureMcp()
 {
 	// Define the pin mask for used pins only (pins 0-3)
@@ -112,27 +118,91 @@ void GPIOManager::configureMcp()
 	// 1: MCP23017_ENC_SW - Encoder push button
 	// 2: MCP23017_ENC_A - Encoder pin A
 	// 3: MCP23017_ENC_B - Encoder pin B
-	uint8_t usedPinsMask = (1 << MCP23017_SW1) |
-						   (1 << MCP23017_ENC_SW) |
-						   (1 << MCP23017_ENC_A) |
-						   (1 << MCP23017_ENC_B);
+	uint8_t usedAPinsMask = (1 << MCP23017_SW1) |
+							(1 << MCP23017_ENC_SW) |
+							(1 << MCP23017_ENC_A) |
+							(1 << MCP23017_ENC_B);
+
+	uint8_t usedBPinsMask = (0 << MCP23017_EMERGENCY_RELAY);
 
 	// Configure only used pins as inputs (1 = input)
-	mcp23017_set_io_dir(myMCP23017, usedPinsMask, MCP23017_GPIOA);
+	mcp23017_set_io_dir(myMCP23017, usedAPinsMask, MCP23017_GPIOA);
+	mcp23017_set_io_dir(myMCP23017, usedBPinsMask, MCP23017_GPIOB);
 
 	// Enable pull-ups only for used pins
-	mcp23017_set_pullup(myMCP23017, usedPinsMask);
+	mcp23017_set_pullup(myMCP23017, usedAPinsMask);
 
 	// Enable interrupts only for used pins - convert to uint16_t format for port A
-	uint16_t interruptPinsMask = (uint16_t)usedPinsMask;
+	uint16_t interruptPinsMask = (uint16_t)usedAPinsMask;
 	mcp23017_interrupt_en(myMCP23017, interruptPinsMask, false, 0);
 
 	// Read initial state
 	myLastEncoderState = readMcpPortA();
 	myLastSwitchState = (myLastEncoderState & (1 << MCP23017_SW1)) == 0; // Active low
 
+	// Set Port B pin 0 (SSR) as output and initially low
+	writeMcpPortB(0x00); // Set all pins low
+
 	// Clear any pending interrupts by reading the capture register
 	mcp23017_get_int_flag(myMCP23017);
+}
+
+void GPIOManager::setMcpPortBPin(uint8_t pin, bool value)
+{
+	if (!myMCPInitialized || myMCP23017 == nullptr)
+	{
+		return;
+	}
+
+	uint8_t port_val = readMcpPortB();
+	if (value)
+	{
+		port_val |= (1 << pin);
+	}
+	else
+	{
+		port_val &= ~(1 << pin);
+	}
+
+	writeMcpPortB(port_val);
+}
+
+void GPIOManager::setMcpPortAPin(uint8_t pin, bool value)
+{
+	if (!myMCPInitialized || myMCP23017 == nullptr)
+	{
+		return;
+	}
+
+	uint8_t port_val = readMcpPortA();
+	if (value)
+	{
+		port_val |= (1 << pin);
+	}
+	else
+	{
+		port_val &= ~(1 << pin);
+	}
+
+	writeMcpPortA(port_val);
+}
+
+uint8_t GPIOManager::readMcpPortB()
+{
+	// Use the correct MCP23017 API function to read the I/O port B
+	return mcp23017_read_io(myMCP23017, MCP23017_GPIOB);
+}
+
+void GPIOManager::writeMcpPortA(uint8_t value)
+{
+	// Use the correct MCP23017 API function to write to the I/O port A
+	mcp23017_write_io(myMCP23017, value, MCP23017_GPIOA);
+}
+
+void GPIOManager::writeMcpPortB(uint8_t value)
+{
+	// Use the correct MCP23017 API function to write to the I/O port B
+	mcp23017_write_io(myMCP23017, value, MCP23017_GPIOB);
 }
 
 uint8_t GPIOManager::readMcpPortA()
@@ -296,6 +366,26 @@ void GPIOManager::processEncoderButton()
 	}
 
 	last_button_state = button_pressed;
+}
+
+void GPIOManager::processDoorSwitch()
+{
+	if (!myMCPInitialized || myMCP23017 == nullptr)
+	{
+		return;
+	}
+
+	uint8_t port_val = readMcpPortA();
+	myIsDoorOpen = ((port_val >> MCP23017_DOOR_SW) & 0x01) == 0; // Active low
+
+	if (myIsDoorOpen)
+	{
+		ESP_LOGI(GPIOTAG, "Door is open");
+	}
+	else
+	{
+		ESP_LOGI(GPIOTAG, "Door is closed");
+	}
 }
 
 void GPIOManager::processToggleSwitch()

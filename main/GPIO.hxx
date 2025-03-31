@@ -14,11 +14,23 @@ class GPIOManager
 {
 public:
 	GPIOManager();
+
+	static GPIOManager *GetInstance()
+	{
+		return myInstance;
+	}
+
+	void setEmergencyRelay(bool value);
+	bool isDoorOpen()
+	{
+		return myIsDoorOpen;
+	};
+
+private:
 	// Set LVGL objects to control
 	void setArc(lv_obj_t *arc);
 	void setButton(lv_obj_t *button);
-
-private:
+	static GPIOManager *myInstance;
 	i2c_config_t myI2CConfig;
 
 	i2c_bus_handle_t myI2CBus = nullptr;
@@ -33,6 +45,7 @@ private:
 
 	// Last switch state to detect changes
 	bool myLastSwitchState = false;
+	bool myIsDoorOpen = true;
 
 	// LVGL objects to control
 	lv_obj_t *myArc = nullptr;
@@ -55,8 +68,20 @@ private:
 	// Process toggle switch
 	void processToggleSwitch();
 
+	void processDoorSwitch();
+
 	// Read MCP23017 state
 	uint8_t readMcpPortA();
+
+	uint8_t readMcpPortB();
+
+	void writeMcpPortB(uint8_t value);
+
+	void writeMcpPortA(uint8_t value);
+
+	void setMcpPortAPin(uint8_t pin, bool value);
+
+	void setMcpPortBPin(uint8_t pin, bool value);
 
 	// Configure MCP23017 pins and interrupts
 	void configureMcp();

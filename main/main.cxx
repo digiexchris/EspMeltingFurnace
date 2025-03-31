@@ -100,11 +100,10 @@ extern "C" void scanI2CBus()
 extern "C" void app_main(void)
 {
 	// scanI2CBus();
+	GPIOManager *gpio = new GPIOManager();
 	SPIBusManager *spi3Manager = new SPIBusManager(SPI3_HOST);
 	TempUI *ui = new TempUI(spi3Manager);
 	TempController controller(ui, spi3Manager);
-
-	GPIOManager *gpio = new GPIOManager();
 
 	vTaskDelay(portMAX_DELAY);
 }

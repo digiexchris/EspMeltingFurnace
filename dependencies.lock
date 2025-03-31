@@ -97,6 +97,62 @@ dependencies:
       registry_url: https://components.espressif.com/
       type: service
     version: 9.2.2
+  plasmapper/pl_common:
+    component_hash: bc77bf671462e34ba957e32182ed8f77c8eca31edf125cfc57a19d7b74de1db0
+    dependencies:
+    - name: idf
+      require: private
+      version: ^5.0
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    version: 1.2.2
+  plasmapper/pl_modbus:
+    component_hash: 2ac35f52a0a2611cd6b802e7acf4788ecb14e85297c7f788dc29e5a97e71ed22
+    dependencies:
+    - name: plasmapper/pl_network
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^1.1.0
+    - name: plasmapper/pl_common
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^1.2.1
+    - name: idf
+      require: private
+      version: ^5.3
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.2.1
+  plasmapper/pl_network:
+    component_hash: 46a3f582c57b39746971d40b0af06f5ecc57087daa1d07cbb379b47f2a32f18e
+    dependencies:
+    - name: plasmapper/pl_common
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^1.2.2
+    - name: idf
+      require: private
+      version: ^5.3
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    version: 1.1.2
+  plasmapper/pl_uart:
+    component_hash: 51f65bbddc5b6bc4f364de1c9598ab148b4f7f8b678203cd1e0599dc8d4c7413
+    dependencies:
+    - name: plasmapper/pl_common
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^1.2.1
+    - name: idf
+      require: private
+      version: ^5.0
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.1.0
 direct_dependencies:
 - espressif/esp_lcd_ili9341
 - espressif/esp_lcd_touch
@@ -105,6 +161,8 @@ direct_dependencies:
 - hayschan/autopid_for_esp_idf
 - idf
 - lvgl/lvgl
-manifest_hash: 62e3adc160854f4bdf7c54b0c48656b6d4c6e2b262a917f211946b9b4530cc29
+- plasmapper/pl_modbus
+- plasmapper/pl_uart
+manifest_hash: 692822147c32b470fa0f7f84c65077cff8ea62e9ac0b5ef59a5280ff237a4e19
 target: esp32
 version: 2.0.0

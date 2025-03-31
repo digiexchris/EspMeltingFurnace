@@ -235,7 +235,7 @@ void TempUI::ui_event_Arc1(lv_event_t *e)
 {
 	lv_event_code_t event_code = lv_event_get_code(e);
 	lv_obj_t *target = static_cast<lv_obj_t *>(lv_event_get_target(e));
-	ESP_LOGI(TAG, "ui_event_Arc1 event_code: %d", event_code);
+	// ESP_LOGI(TAG, "ui_event_Arc1 event_code: %d", event_code);
 	if (event_code == LV_EVENT_VALUE_CHANGED)
 	{
 		TempUI *tempUI = TempUI::GetInstance();

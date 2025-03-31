@@ -82,16 +82,18 @@ enum MCP23017_PINS
 	PA7 = 7
 };
 
-#define MCP23017_I2C_ADDR 0x20
+#define MCP23017_I2C_ADDR 0x27
 #define MCP23017_I2C_SDA (gpio_num_t) GPIO_NUM_16
 #define MCP23017_I2C_SCL (gpio_num_t) GPIO_NUM_17
 #define MCP23017_I2C_INT0 (gpio_num_t) GPIO_NUM_35
 #define MCP23017_I2C_INT1 (gpio_num_t) GPIO_NUM_5
 #define MCP23017_I2C_ADDR 0x27
 #define MCP23017_SW1 (int)0
+#define MCP23017_EMERGENCY_RELAY (int)0
 #define MCP23017_ENC_SW (int)1
 #define MCP23017_ENC_A (int)2
 #define MCP23017_ENC_B (int)3
+#define MCP23017_DOOR_SW (int)4
 
 // SPI bus access synchronization
 #define SPI3_BUS_TIMEOUT_MS 1000
