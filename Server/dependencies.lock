@@ -1,0 +1,80 @@
+dependencies:
+  hayschan/autopid_for_esp_idf:
+    component_hash: abb01ee57353d22df70c27840ddec00b90544540c9a78ec18932737d7fbb7878
+    dependencies: []
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.0.2
+  idf:
+    source:
+      type: idf
+    version: 5.3.1
+  plasmapper/pl_common:
+    component_hash: bc77bf671462e34ba957e32182ed8f77c8eca31edf125cfc57a19d7b74de1db0
+    dependencies:
+    - name: idf
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^5.0
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.2.2
+  plasmapper/pl_modbus:
+    component_hash: 2ac35f52a0a2611cd6b802e7acf4788ecb14e85297c7f788dc29e5a97e71ed22
+    dependencies:
+    - name: plasmapper/pl_network
+      registry_url: https://components.espressif.com/
+      require: private
+      version: ^1.1.0
+    - name: plasmapper/pl_common
+      registry_url: https://components.espressif.com/
+      require: private
+      version: ^1.2.1
+    - name: idf
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^5.3
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.2.1
+  plasmapper/pl_network:
+    component_hash: 46a3f582c57b39746971d40b0af06f5ecc57087daa1d07cbb379b47f2a32f18e
+    dependencies:
+    - name: plasmapper/pl_common
+      registry_url: https://components.espressif.com/
+      require: private
+      version: ^1.2.2
+    - name: idf
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^5.3
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.1.2
+  plasmapper/pl_uart:
+    component_hash: 51f65bbddc5b6bc4f364de1c9598ab148b4f7f8b678203cd1e0599dc8d4c7413
+    dependencies:
+    - name: plasmapper/pl_common
+      registry_url: https://components.espressif.com/
+      require: private
+      version: ^1.2.1
+    - name: idf
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^5.0
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.1.0
+direct_dependencies:
+- hayschan/autopid_for_esp_idf
+- idf
+- plasmapper/pl_modbus
+- plasmapper/pl_uart
+manifest_hash: 682ec20391830be0b2976991f51d764a658f87262ea3ad5f0718ec63c4820169
+target: esp32
+version: 2.0.0

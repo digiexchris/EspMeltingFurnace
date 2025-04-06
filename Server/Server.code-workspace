@@ -1,0 +1,26 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../Frontend"
+		},
+		{
+			"path": "../lib"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"ui.h": "c",
+			"lvgl.h": "c",
+			"lv_version.h": "c",
+			"lv_init.h": "c",
+			"lv_mem.h": "c",
+			"esp_lcd_panel_vendor.h": "c",
+			"touch.h": "c",
+			"functional": "cpp",
+			"array": "cpp"
+		}
+	}
+}

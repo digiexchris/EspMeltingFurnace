@@ -1,4 +1,6 @@
 # FROM debian:bullseye-slim
+ARG DOCKER_TAG=v5.3.1
+FROM espressif/idf:${DOCKER_TAG}
 ENV DEBIAN_FRONTEND=noninteractive
 # ENV LC_ALL=C.UTF-8
 # ENV LANG=C.UTF-8
@@ -6,8 +8,8 @@ ENV IDF_CCACHE_ENABLE=1
 # ARG CONTAINER_USER=esp
 # ARG CONTAINER_GROUP=esp
 
-ARG DOCKER_TAG=v5.3.1
-FROM espressif/idf:${DOCKER_TAG}
+
+
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
