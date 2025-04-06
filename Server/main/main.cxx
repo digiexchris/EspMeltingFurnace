@@ -12,18 +12,20 @@
 #include <esp_system.h>
 
 #define TAG "MeltingFurnace"
+#include "GPIO.hxx"
 #include "tempController.hxx"
 
 #include "SPIBus.hxx"
+#include "Server.hxx"
 #include "sdkconfig.h"
 
 extern "C" void app_main(void)
 {
-	
-	FurnaceClient::GetInstance();
+
+	Server::GetInstance();
 	GPIOManager *gpio = new GPIOManager();
 	SPIBusManager *spi3Manager = new SPIBusManager(SPI3_HOST);
-	TempController controller(ui, spi3Manager);
+	TempController controller(spi3Manager);
 
 	vTaskDelay(portMAX_DELAY);
 }

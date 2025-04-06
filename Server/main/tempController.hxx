@@ -8,6 +8,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+#include "freertos/timers.h" // Added for software PWM timer
 
 #include <esp_log.h>
 
@@ -30,12 +31,13 @@ public:
 
 private:
 	static constexpr int SSR_FULL_PWM = 1023;
-	static constexpr int SSR_REDUCED_PWM = 512; // to be enabled once on 240v
-	// static constexpr int SSR_REDUCED_PWM = SSR_FULL_PWM;
+	static constexpr int SSR_REDUCED_PWM = 512;
 	static constexpr int SSR_OFF_PWM = 0;
-	static constexpr gpio_num_t SSR_PIN = HEATER_SSR_PIN;
 	static constexpr int SSR_REDUCED_PWM_UNDER = 400;
 	static constexpr int SSR_BANG_BANG_WINDOW = 50;
+
+	// Software PWM constants
+	static constexpr int PWM_PERIOD_MS = 5000; // 5-second period
 
 	int SSR_CURRENT_MAX_PWM = SSR_REDUCED_PWM;
 	int SSR_CURRENT_PWM = SSR_OFF_PWM;
@@ -56,9 +58,14 @@ private:
 	static void thermocoupleTask(void *pvParameter);
 	static void pidTask(void *pvParameter);
 
+	// Software PWM timer and callback
+	TimerHandle_t mySoftPwmTimer = nullptr;
+	static void softPwmTimerCallback(TimerHandle_t xTimer);
+	void updateSoftPwm();
+
 	void initSSR();
 	void initPID();
-	static void setSSRDutyCycle(int duty);
+	void setSSRDutyCycle(int duty);
 
 	AutoPIDRelay *myAutoPIDRelay = nullptr;
 

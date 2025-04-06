@@ -42,6 +42,17 @@ inline bool operator!=(ErrorCode lhs, ErrorCode rhs)
 	return static_cast<uint8_t>(lhs) != static_cast<uint8_t>(rhs);
 }
 
+inline ErrorCode operator~(ErrorCode code)
+{
+	return static_cast<ErrorCode>(~static_cast<uint8_t>(code));
+}
+
+inline ErrorCode &operator&=(ErrorCode &lhs, ErrorCode rhs)
+{
+	lhs = static_cast<ErrorCode>(static_cast<uint8_t>(lhs) & static_cast<uint8_t>(rhs));
+	return lhs;
+}
+
 enum class CoilMask : uint8_t
 {
 	ENABLE = 0x01, // 0b00000010

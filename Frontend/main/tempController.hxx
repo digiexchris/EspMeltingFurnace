@@ -56,7 +56,7 @@ private:
 
 	void initSSR();
 	void initPID();
-	static void setSSRDutyCycle(int duty);
+	void setSSRDutyCycle(int duty);
 
 	AutoPIDRelay *myAutoPIDRelay = nullptr;
 };
