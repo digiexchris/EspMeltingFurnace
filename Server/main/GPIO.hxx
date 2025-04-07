@@ -6,6 +6,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/task.h>
+#include <unordered_map>
 
 class GPIOManager
 {
@@ -24,19 +25,13 @@ public:
 	};
 
 private:
-	
 	static GPIOManager *myInstance;
 
-	// Last switch state to detect changes
-	bool myLastSwitchState = false;
 	bool myIsDoorOpen = true;
 
-	// Interrupt handler task
-	static void interruptHandlerTask(void *arg);
-	TaskHandle_t myTaskHandle = nullptr;
+	// pair of the timer and the previously valid state of the switch
+	std::unordered_map<gpio_num_t, std::pair<TimerHandle_t, bool>> mySwitchState;
 
-	void processDoorSwitch();
-
-	// Queue for communicating between ISR and task
-	static QueueHandle_t myEventQueue;
+	static void processSwitch(void *arg);
+	static void debounceSwitchCallback(TimerHandle_t xTimer);
 };

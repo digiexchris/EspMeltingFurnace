@@ -2,7 +2,7 @@
 # without default 'CMakeLists.txt' file.
 
 # Register the main component
-FILE(GLOB_RECURSE app_sources ${CMAKE_CURRENT_SOURCE_DIR}/*.*)
+FILE(GLOB_RECURSE app_sources ${CMAKE_CURRENT_SOURCE_DIR}/*.* ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/*.*)
 
 idf_component_register(
     SRCS ${app_sources}
