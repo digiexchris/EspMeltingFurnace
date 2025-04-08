@@ -9,6 +9,7 @@
 class DynamicDiscreteInputs : public PL::ModbusMemoryArea
 {
 public:
+	using PL::ModbusMemoryArea::ModbusMemoryArea;
 	esp_err_t OnRead() override;
 
 private:
@@ -18,6 +19,7 @@ private:
 class DynamicCoils : public PL::ModbusMemoryArea
 {
 public:
+	using PL::ModbusMemoryArea::ModbusMemoryArea;
 	esp_err_t OnRead() override;
 	esp_err_t OnWrite() override;
 
@@ -28,6 +30,7 @@ private:
 class DynamicHoldingRegisters : public PL::ModbusMemoryArea
 {
 public:
+	using PL::ModbusMemoryArea::ModbusMemoryArea;
 	esp_err_t OnRead() override;
 	esp_err_t OnWrite() override;
 
@@ -38,8 +41,8 @@ private:
 class DynamicInputRegisters : public PL::ModbusMemoryArea
 {
 public:
+	using PL::ModbusMemoryArea::ModbusMemoryArea;
 	esp_err_t OnRead() override;
-	esp_err_t OnWrite() override;
 
 private:
 	InputRegisters data;

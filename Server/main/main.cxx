@@ -11,7 +11,7 @@
 #include <esp_log.h>
 #include <esp_system.h>
 
-#define TAG "MeltingFurnace"
+
 #include "GPIO.hxx"
 #include "TempController.hxx"
 
@@ -20,11 +20,15 @@
 #include "State.hxx"
 #include "sdkconfig.h"
 #include "uart/Uart.hxx"
+#include "State.hxx"
+
+#define TAG "MeltingFurnace"
 
 extern "C" void app_main(void)
 {
 
 	GPIOManager::GetInstance();
+	State::GetInstance();
 	SPIBusManager *spi3Manager = new SPIBusManager(SPI3_HOST);
 	TempController controller(spi3Manager);
 	UARTManager::GetInstance();

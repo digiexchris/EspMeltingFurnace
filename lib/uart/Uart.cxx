@@ -8,9 +8,9 @@
 
 UARTManager *UARTManager::myInstance = nullptr;
 
-UARTManager::UARTManager()
+UARTManager::UARTManager(uart_port_t aPort, )
 {
-	myUart = std::make_shared<PL::Uart>(UART_NUM_0);
+	myUart = std::make_shared<PL::Uart>(aPort);
 
 	myUart->Initialize();
 	myUart->SetBaudRate(115200);

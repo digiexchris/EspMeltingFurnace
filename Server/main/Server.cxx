@@ -17,13 +17,13 @@ Server::Server()
 	myModbusServer = std::make_shared<PL::ModbusServer>(myUart, PL::ModbusProtocol::rtu, 1);
 
 	// Coils, digital inputs, holding registers and input registers all mapped to the same area.
-	myHoldingRegisters = std::make_shared<DynamicHoldingRegisters>(PL::ModbusMemoryType::holdingRegisters, 0);
+	myHoldingRegisters = std::make_shared<DynamicHoldingRegisters>(PL::ModbusMemoryType::holdingRegisters, 0, sizeof(DynamicHoldingRegisters));
 
-	myCoils = std::make_shared<DynamicCoils>(PL::ModbusMemoryType::coils, 0);
+	myCoils = std::make_shared<DynamicCoils>(PL::ModbusMemoryType::coils, 0, sizeof(DynamicHoldingRegisters));
 
-	myDiscreteInputs = std::make_shared<DynamicDiscreteInputs>(PL::ModbusMemoryType::discreteInputs, 0);
+	myDiscreteInputs = std::make_shared<DynamicDiscreteInputs>(PL::ModbusMemoryType::discreteInputs, 0, sizeof(DynamicHoldingRegisters));
 
-	myInputRegisters = std::make_shared<DynamicInputRegisters>(PL::ModbusMemoryType::inputRegisters, 0);
+	myInputRegisters = std::make_shared<DynamicInputRegisters>(PL::ModbusMemoryType::inputRegisters, 0, sizeof(DynamicHoldingRegisters));
 
 	myModbusServer->AddMemoryArea(myCoils);
 	myModbusServer->AddMemoryArea(myDiscreteInputs);

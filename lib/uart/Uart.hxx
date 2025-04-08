@@ -5,7 +5,7 @@
 class UARTManager
 {
 public:
-	UARTManager();
+	UARTManager(uart_port_t aPort = UART_NUM_0);
 
 	static UARTManager *GetInstance()
 	{
