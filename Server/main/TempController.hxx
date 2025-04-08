@@ -102,9 +102,6 @@ private:
 	int SSR_CURRENT_PWM = 0;
 	SPIBusManager *mySpiBusManager;
 	static TempController *myInstance;
-	QueueHandle_t myThermocoupleQueue;
-	MAX31856::MAX31856 *myThermocouple;
-	MAX31856::Result myLastResult;
 
 	bool *myRelayState = nullptr; // dummy relay state for the AutoPIDRelay constructor, will be using the pulse width instead
 	double *myCurrentTemp = nullptr;

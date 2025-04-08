@@ -1,8 +1,12 @@
 #include "Server.hxx"
 #include "State.hxx"
 #include "TempController.hxx"
+#include "hardware.h"
 #include "modbus/Proto.hxx"
 #include "uart/Uart.hxx"
+
+#include "driver/uart.h"
+#include "pl_uart.h"
 
 #include <esp_log.h>
 #include <memory>
@@ -13,16 +17,20 @@ static const char *ServerTAG = "Server";
 
 Server::Server()
 {
-	myUart = UARTManager::GetInstance()->GetUart();
+	myUart = std::make_shared<PL::Uart>(MODBUS_UART_PORT, SOC_UART_FIFO_LEN + 4, SOC_UART_FIFO_LEN + 4, MODBUS_TX, MODBUS_RX, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+	myUart->Initialize();
+	myUart->SetBaudRate(115200);
+	myUart->SetDataBits(8);
+	myUart->SetParity(PL::UartParity::even);
+	myUart->SetStopBits(PL::UartStopBits::one);
+	myUart->SetFlowControl(PL::UartFlowControl::none);
+	myUart->Enable();
+
 	myModbusServer = std::make_shared<PL::ModbusServer>(myUart, PL::ModbusProtocol::rtu, 1);
 
-	// Coils, digital inputs, holding registers and input registers all mapped to the same area.
 	myHoldingRegisters = std::make_shared<DynamicHoldingRegisters>(PL::ModbusMemoryType::holdingRegisters, 0, sizeof(DynamicHoldingRegisters));
-
 	myCoils = std::make_shared<DynamicCoils>(PL::ModbusMemoryType::coils, 0, sizeof(DynamicHoldingRegisters));
-
 	myDiscreteInputs = std::make_shared<DynamicDiscreteInputs>(PL::ModbusMemoryType::discreteInputs, 0, sizeof(DynamicHoldingRegisters));
-
 	myInputRegisters = std::make_shared<DynamicInputRegisters>(PL::ModbusMemoryType::inputRegisters, 0, sizeof(DynamicHoldingRegisters));
 
 	myModbusServer->AddMemoryArea(myCoils);

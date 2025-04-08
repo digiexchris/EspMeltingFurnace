@@ -1,14 +1,15 @@
 dependencies:
   idf:
-    version: '>=5.3.0'
-  # espressif/esp_lcd_ili9341: ^2.0.0
-  # # atanisoft/esp_lcd_touch_xpt2046: "^1.0.3"
-  # espressif/esp_lvgl_port: ^2.5.0
-  # espressif/esp_lcd_touch: ^1.1.2
-  # lvgl/lvgl: ^9.2.2
+    version: '>=5.4.0'
+  cmd_system:
+    path: ${IDF_PATH}/examples/system/console/advanced/components/cmd_system
+  # cmd_nvs:
+  #   path: ${IDF_PATH}/examples/system/console/advanced/components/cmd_nvs
+  cmd_wifi:
+    path: ${IDF_PATH}/examples/system/console/advanced/components/cmd_wifi
+
   plasmapper/pl_modbus: ^1.2.1
+  plasmapper/pl_uart: ^1.1.0
   hayschan/autopid_for_esp_idf: ^1.0.2
   # espressif/mcp23017: ^0.1.0
-
-
   plasmapper/pl_uart: ^1.1.0

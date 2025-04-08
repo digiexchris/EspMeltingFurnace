@@ -1,5 +1,6 @@
 #include "SPIBus.hxx"
 #include <esp_log.h>
+#include <pl_uart.h>
 
 const char *TAG = "SPIBusManager";
 

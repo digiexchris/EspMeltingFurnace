@@ -8,7 +8,7 @@
 
 UARTManager *UARTManager::myInstance = nullptr;
 
-UARTManager::UARTManager(uart_port_t aPort, )
+UARTManager::UARTManager(uart_port_t aPort)
 {
 	myUart = std::make_shared<PL::Uart>(aPort);
 

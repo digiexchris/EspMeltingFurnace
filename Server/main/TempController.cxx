@@ -11,6 +11,8 @@
 #include "State.hxx"
 #include "TempController.hxx"
 
+#include "TempDevice.hxx"
+
 const char *TCTAG = "TempController";
 
 bool isInRange(int value, int min, int max)
@@ -20,29 +22,11 @@ bool isInRange(int value, int min, int max)
 
 TempController *TempController::myInstance = nullptr;
 
-TempController::TempController(SPIBusManager *aBusManager) : mySpiBusManager(aBusManager), myThermocoupleQueue(nullptr)
+TempController::TempController(SPIBusManager *aBusManager) : mySpiBusManager(aBusManager)
 {
 	ESP_LOGI(TCTAG, "Initialize");
 
 	myInstance = this;
-
-	assert(aBusManager != nullptr);
-
-	mySpiBusManager->lock();
-	myThermocouple = new MAX31856::MAX31856(SPI3_HOST, false);
-	myThermocouple->AddDevice(MAX31856::ThermocoupleType::MAX31856_TCTYPE_K, MAX31856_SPI3_CS, 0);
-	mySpiBusManager->unlock();
-
-	myThermocoupleQueue = xQueueCreate(5, sizeof(struct MAX31856::Result));
-	if (myThermocoupleQueue != NULL)
-	{
-		ESP_LOGI(TCTAG, "Created: thermocouple_queue");
-	}
-	else
-	{
-		ESP_LOGE(TCTAG, "Failed to Create: thermocouple_queue");
-		assert(false);
-	}
 
 	// Allocate memory for data passed in and out of autopid
 	myCurrentTemp = new double(0.0);
@@ -50,9 +34,6 @@ TempController::TempController(SPIBusManager *aBusManager) : mySpiBusManager(aBu
 	myRelayState = new bool(false);
 
 	initPID();
-
-	xTaskCreate(&thermocoupleTask, "thermocouple_task", 2048, this, 6, NULL);
-	xTaskCreate(&receiverTask, "receiver_task", 2048, this, 6, NULL);
 
 	xTaskCreate(&pidTask, "pid_task", 2048, this, 6, NULL);
 }
@@ -81,110 +62,20 @@ TempController::~TempController()
 	setSSRDutyCycle(myConfig.SSR_OFF_PWM);
 }
 
-void TempController::thermocoupleTask(void *pvParameter)
-{
-	ESP_LOGI("task", "Created: receiver_task");
-	TempController *instance = static_cast<TempController *>(pvParameter);
-
-	MAX31856::Result result = {
-		.coldjunction_c = 0,
-		.coldjunction_f = 0,
-		.thermocouple_c = 0,
-		.thermocouple_f = 0,
-		.fault = 0,
-	};
-
-	while (42)
-	{
-		instance->mySpiBusManager->lock();
-		instance->myThermocouple->read(result, 0);
-		instance->mySpiBusManager->unlock();
-		xQueueSend(instance->myThermocoupleQueue, &result, (TickType_t)0);
-		vTaskDelay(600 / portTICK_PERIOD_MS);
-	}
-}
-
-void TempController::receiverTask(void *pvParameter)
-{
-	ESP_LOGI("task", "Created: thermocouple_task");
-	TempController *instance = static_cast<TempController *>(pvParameter);
-
-	MAX31856::Result result = {
-		.coldjunction_c = 0,
-		.coldjunction_f = 0,
-		.thermocouple_c = 0,
-		.thermocouple_f = 0,
-		.fault = 0,
-	};
-
-	float lastTemp = 0;
-	float lastColdTemp = 0;
-
-	State *state = State::GetInstance();
-
-	while (1)
-	{
-		xQueueReceive(instance->myThermocoupleQueue, &result, (TickType_t)(200 / portTICK_PERIOD_MS));
-
-		if (result.thermocouple_c != lastTemp || result.coldjunction_c != lastColdTemp)
-		{
-			lastTemp = result.thermocouple_c;
-			lastColdTemp = result.coldjunction_c;
-
-			float highLimit = std::min<float>((float)*instance->mySetTemp + 50, MAX_TEMP);
-
-			if (result.thermocouple_c > highLimit)
-			{
-				state->SetError(ErrorCode::TEMP_RANGE_HIGH);
-			}
-			else
-			{
-				if (state->IsErrorSet(ErrorCode::TEMP_RANGE_HIGH))
-				{
-					state->ClearError(ErrorCode::TEMP_RANGE_HIGH);
-				}
-			}
-
-			if (result.thermocouple_c < MIN_TEMP)
-			{
-				state->SetError(ErrorCode::TEMP_RANGE_LOW);
-			}
-			else
-			{
-				if (state->IsErrorSet(ErrorCode::TEMP_RANGE_LOW))
-				{
-					state->ClearError(ErrorCode::TEMP_RANGE_LOW);
-				}
-			}
-
-			instance->myLastResult = result;
-			*instance->myCurrentTemp = result.thermocouple_c;
-			if (lastTemp < instance->myConfig.SSR_REDUCED_PWM_UNDER && instance->SSR_CURRENT_MAX_PWM != instance->myConfig.SSR_REDUCED_PWM_VALUE)
-			{
-				instance->myAutoPIDRelay->setOutputRange(instance->myConfig.SSR_OFF_PWM, instance->myConfig.SSR_REDUCED_PWM_VALUE);
-				instance->SSR_CURRENT_MAX_PWM = instance->myConfig.SSR_REDUCED_PWM_VALUE;
-			}
-			else
-			{
-				if (instance->SSR_CURRENT_MAX_PWM != instance->myConfig.SSR_FULL_PWM)
-				{
-					instance->myAutoPIDRelay->setOutputRange(instance->myConfig.SSR_OFF_PWM, instance->myConfig.SSR_FULL_PWM);
-					instance->SSR_CURRENT_MAX_PWM = instance->myConfig.SSR_FULL_PWM;
-				}
-			}
-		}
-
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
-	}
-}
-
 void TempController::pidTask(void *pvParameter)
 {
 	TempController *instance = static_cast<TempController *>(pvParameter);
+	TempDevice *thermocouple = TempDevice::GetInstance();
 
 	GPIOManager *gpio = GPIOManager::GetInstance();
 
 	State *state = State::GetInstance();
+
+	TempResult result = {
+		.thermocouple_c = 0,
+		.thermocouple_f = 0,
+		.fault = 0,
+	};
 
 	if (instance == nullptr)
 	{
@@ -199,6 +90,49 @@ void TempController::pidTask(void *pvParameter)
 			ESP_LOGE(TCTAG, "GPIOManager instance is null");
 			vTaskDelay(1000 / portTICK_PERIOD_MS);
 			continue;
+		}
+
+		result = thermocouple->GetResult();
+
+		float highLimit = std::min<float>((float)*instance->mySetTemp + 50, MAX_TEMP);
+
+		if (result.thermocouple_c > highLimit)
+		{
+			state->SetError(ErrorCode::TEMP_RANGE_HIGH);
+		}
+		else
+		{
+			if (state->IsErrorSet(ErrorCode::TEMP_RANGE_HIGH))
+			{
+				state->ClearError(ErrorCode::TEMP_RANGE_HIGH);
+			}
+		}
+
+		if (result.thermocouple_c < MIN_TEMP)
+		{
+			state->SetError(ErrorCode::TEMP_RANGE_LOW);
+		}
+		else
+		{
+			if (state->IsErrorSet(ErrorCode::TEMP_RANGE_LOW))
+			{
+				state->ClearError(ErrorCode::TEMP_RANGE_LOW);
+			}
+		}
+
+		*instance->myCurrentTemp = result.thermocouple_c;
+		if (*instance->myCurrentTemp < instance->myConfig.SSR_REDUCED_PWM_UNDER && instance->SSR_CURRENT_MAX_PWM != instance->myConfig.SSR_REDUCED_PWM_VALUE)
+		{
+			instance->myAutoPIDRelay->setOutputRange(instance->myConfig.SSR_OFF_PWM, instance->myConfig.SSR_REDUCED_PWM_VALUE);
+			instance->SSR_CURRENT_MAX_PWM = instance->myConfig.SSR_REDUCED_PWM_VALUE;
+		}
+		else
+		{
+			if (instance->SSR_CURRENT_MAX_PWM != instance->myConfig.SSR_FULL_PWM)
+			{
+				instance->myAutoPIDRelay->setOutputRange(instance->myConfig.SSR_OFF_PWM, instance->myConfig.SSR_FULL_PWM);
+				instance->SSR_CURRENT_MAX_PWM = instance->myConfig.SSR_FULL_PWM;
+			}
 		}
 
 		if (!state->HasError() && state->IsEnabled())

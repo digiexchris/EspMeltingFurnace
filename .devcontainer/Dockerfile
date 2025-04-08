@@ -1,5 +1,5 @@
 # FROM debian:bullseye-slim
-ARG DOCKER_TAG=v5.3.1
+ARG DOCKER_TAG=v5.4.1
 FROM espressif/idf:${DOCKER_TAG}
 ENV DEBIAN_FRONTEND=noninteractive
 # ENV LC_ALL=C.UTF-8
