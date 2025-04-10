@@ -22,9 +22,9 @@ static constexpr gpio_num_t MAX31856_SPI3_CS = GPIO_NUM_27;
 
 static constexpr uint32_t DEBOUNCE_DELAY_MS = 50; // debounce delay in milliseconds
 
-static constexpr uart_port_t MODBUS_UART_PORT = UART_NUM_0;
-static constexpr gpio_num_t MODBUS_TX = GPIO_NUM_10;
-static constexpr gpio_num_t MODBUS_RX = GPIO_NUM_11;
+static constexpr uart_port_t MODBUS_UART_PORT = UART_NUM_1;
+static constexpr gpio_num_t MODBUS_TX = GPIO_NUM_13;
+static constexpr gpio_num_t MODBUS_RX = GPIO_NUM_14;
 
 #define MAX31856_SPI SPI3_HOST
 

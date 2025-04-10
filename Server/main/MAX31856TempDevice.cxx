@@ -1,12 +1,14 @@
 #include "TempDevice.hxx"
 
-MAX31856TempDevice::MAX31856TempDevice(SPIBusManager *aBusManager, gpio_num_t csPin) : myCsPin(csPin), myBusManager(aBusManager)
+static constexpr const char *TCTAG = "MAX31856TempDevice";
+
+MAX31856TempDevice::MAX31856TempDevice(SPIBusManager *aBusManager, gpio_num_t csPin) : myCsPin(csPin), mySpiBusManager(aBusManager)
 {
 	assert(aBusManager != nullptr);
 
 	mySpiBusManager->lock();
 	myThermocouple = new MAX31856::MAX31856(SPI3_HOST, false);
-	myThermocouple->AddDevice(MAX31856::ThermocoupleType::MAX31856_TCTYPE_K, MAX31856_SPI3_CS, 0);
+	myThermocouple->AddDevice(MAX31856::ThermocoupleType::MAX31856_TCTYPE_K, csPin, 0);
 	mySpiBusManager->unlock();
 
 	myThermocoupleQueue = xQueueCreate(5, sizeof(struct TempResult));
@@ -21,7 +23,6 @@ MAX31856TempDevice::MAX31856TempDevice(SPIBusManager *aBusManager, gpio_num_t cs
 	}
 
 	xTaskCreate(&thermocoupleTask, "thermocouple_task", 2048, this, 6, NULL);
-	xTaskCreate(&receiverTask, "receiver_task", 2048, this, 6, NULL);
 }
 
 void MAX31856TempDevice::thermocoupleTask(void *pvParameter)
@@ -42,7 +43,26 @@ void MAX31856TempDevice::thermocoupleTask(void *pvParameter)
 		instance->mySpiBusManager->lock();
 		instance->myThermocouple->read(result, 0);
 		instance->mySpiBusManager->unlock();
-		myLastResult = result;
+		instance->myTempResult = result;
 		vTaskDelay(600 / portTICK_PERIOD_MS);
 	}
+}
+
+TempResult MAX31856TempDevice::GetResult()
+{
+	return myTempResult;
+}
+
+void MAX31856TempDevice::SetType(TempType type)
+{
+	mySpiBusManager->lock();
+	myThermocouple->setType(static_cast<MAX31856::ThermocoupleType>(type));
+	mySpiBusManager->unlock();
+}
+
+void MAX31856TempDevice::SetTempFaultThresholds(float high, float low)
+{
+	mySpiBusManager->lock();
+	myThermocouple->setTempFaultThreshholds(low, high);
+	mySpiBusManager->unlock();
 }

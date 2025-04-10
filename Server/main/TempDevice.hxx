@@ -7,6 +7,8 @@
 
 #include "max31856-espidf/max31856.hxx"
 
+#include <atomic>
+
 enum class TempType : uint8_t
 {
 	TCTYPE_B = 0b0000,
@@ -19,11 +21,26 @@ enum class TempType : uint8_t
 	TCTYPE_T = 0b0111,
 };
 
+enum class TempFault : uint8_t
+{
+	NONE = 0x00,	// No Fault
+	OPEN = 0x01,	// Open Circuit
+	OVUV = 0x02,	// Over/Under Voltage
+	TCLOW = 0x04,	// Thermocouple Low
+	TCHIGH = 0x08,	// Thermocouple High
+	CJLOW = 0x10,	// Cold Junction Low
+	CJHIGH = 0x20,	// Cold Junction High
+	TCRANGE = 0x40, // Thermocouple Out of Range
+	CJRANGE = 0x80	// Cold Junction Out of Range
+};
+
 struct TempResult
 {
 	float thermocouple_c;
 	float thermocouple_f;
-	uint8_t fault;
+	TempFault fault;
+
+	TempResult() : thermocouple_c(0.0f), thermocouple_f(0.0f), fault(TempFault::NONE) {}
 
 	bool operator==(const TempResult &other) const
 	{
@@ -36,23 +53,65 @@ struct TempResult
 	{
 		return thermocouple_c == other.thermocouple_c &&
 			   thermocouple_f == other.thermocouple_f &&
-			   fault == other.fault;
+			   fault == static_cast<TempFault>(other.fault);
 	}
 
-	TempResult &operator=(const TempResult &other)
-	{
-		thermocouple_c = other.thermocouple_c;
-		thermocouple_f = other.thermocouple_f;
-		fault = other.fault;
-		return *this;
-	}
+	TempResult(const TempResult &other) = default;
+	TempResult &operator=(const TempResult &other) = default;
 
 	TempResult &operator=(const MAX31856::Result &other)
 	{
 		thermocouple_c = other.thermocouple_c;
 		thermocouple_f = other.thermocouple_f;
-		fault = other.fault;
+		fault = static_cast<TempFault>(other.fault);
 		return *this;
+	}
+
+	TempResult &operator=(const MAX31856::Result *other)
+	{
+		if (other != nullptr)
+		{
+			thermocouple_c = other->thermocouple_c;
+			thermocouple_f = other->thermocouple_f;
+			fault = static_cast<TempFault>(other->fault);
+		}
+		return *this;
+	}
+};
+
+class AtomicTempResult
+{
+private:
+	std::atomic<TempResult> value;
+
+public:
+	AtomicTempResult() : value(TempResult{}) {}
+
+	AtomicTempResult &operator=(const TempResult &other)
+	{
+		value.store(other, std::memory_order_release);
+		return *this;
+	}
+
+	AtomicTempResult &operator=(const MAX31856::Result &other)
+	{
+		TempResult temp;
+		temp = other;
+		value.store(temp, std::memory_order_release);
+		return *this;
+	}
+
+	AtomicTempResult &operator=(const MAX31856::Result *other)
+	{
+		TempResult temp;
+		temp = other;
+		value.store(temp, std::memory_order_release);
+		return *this;
+	}
+
+	operator TempResult() const
+	{
+		return value.load(std::memory_order_acquire);
 	}
 };
 
@@ -62,6 +121,22 @@ public:
 	virtual TempResult GetResult() = 0;
 	virtual void SetType(TempType type) = 0;
 	virtual void SetTempFaultThresholds(float high, float low) = 0;
+};
+
+class SimulatedTempDevice : public TempDevice
+{
+public:
+	SimulatedTempDevice();
+	TempResult GetResult();
+	void SetType(TempType type);
+	void SetTempFaultThresholds(float high, float low);
+	void SetTemp(float celsius);
+
+private:
+	TempResult myResult;
+	TempType myType;
+	float myHighFaultThreshold;
+	float myLowFaultThreshold;
 };
 
 class MAX31856TempDevice : public TempDevice
@@ -76,9 +151,9 @@ public:
 private:
 	QueueHandle_t myThermocoupleQueue;
 	MAX31856::MAX31856 *myThermocouple;
-	MAX31856::Result myLastResult;
+	gpio_num_t myCsPin;
+	SPIBusManager *mySpiBusManager;
 
-	TempResult myTempResult;
-	void thermocoupleTask(void *pvParameter);
-	void receiverTask(void *pvParameter);
+	AtomicTempResult myTempResult;
+	static void thermocoupleTask(void *pvParameter);
 };

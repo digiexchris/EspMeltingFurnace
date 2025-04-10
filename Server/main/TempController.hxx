@@ -16,6 +16,7 @@
 #include <AutoPID-for-ESP-IDF.h>
 
 #include "SPIBus.hxx"
+#include "TempDevice.hxx"
 #include "modbus/Proto.hxx"
 
 class TempController
@@ -44,13 +45,8 @@ public:
 		int PWM_PERIOD_MS = 5000;		 // aka HEATER_PERIOD
 	};
 
-	TempController(SPIBusManager *aBusManager);
+	TempController(TempDevice *aTempDevice, SPIBusManager *aBusManager);
 	~TempController();
-
-	MAX31856::Result GetLastResult()
-	{
-		return myLastResult;
-	}
 
 	void SetTemp(double temp)
 	{
@@ -97,6 +93,7 @@ public:
 
 private:
 	Config myConfig;
+	TempDevice *myTempDevice;
 
 	int SSR_CURRENT_MAX_PWM = 512;
 	int SSR_CURRENT_PWM = 0;

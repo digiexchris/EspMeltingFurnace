@@ -18,6 +18,8 @@
 #include "SPIBus.hxx"
 #include "Server.hxx"
 #include "State.hxx"
+#include "TempDevice.hxx"
+#include "hardware.h"
 #include "sdkconfig.h"
 #include "uart/Uart.hxx"
 
@@ -29,7 +31,16 @@ extern "C" void app_main(void)
 	GPIOManager::GetInstance();
 	State::GetInstance();
 	SPIBusManager *spi3Manager = new SPIBusManager(SPI3_HOST);
-	TempController controller(spi3Manager);
+	// TempDevice *thermocouple = new MAX31856TempDevice(spi3Manager, MAX31856_SPI3_CS);
+	//  thermocouple->SetType(TempType::TCTYPE_K);
+	//  thermocouple->SetTempFaultThresholds(1350, 5);
+	//  TempController controller(thermocouple, spi3Manager);
+	TempDevice *simulatedThermocouple = new SimulatedTempDevice();
+	simulatedThermocouple->SetType(TempType::TCTYPE_K);
+	simulatedThermocouple->SetTempFaultThresholds(1350, 5);
+	static_cast<SimulatedTempDevice *>(simulatedThermocouple)->SetTemp(25.0);
+	// TempController controller(thermocouple, spi3Manager);
+	TempController controller(simulatedThermocouple, spi3Manager);
 	UARTManager::GetInstance();
 	Server::GetInstance();
 	Console::GetInstance();

@@ -53,7 +53,12 @@ void Console::InitializeConsole()
 #endif
 	};
 	/* Install UART driver for interrupt-driven reads and writes */
-	ESP_ERROR_CHECK(uart_driver_install((uart_port_t)CONFIG_ESP_CONSOLE_UART_NUM, 256, 0, 0, NULL, 0));
+	auto err = uart_driver_install((uart_port_t)CONFIG_ESP_CONSOLE_UART_NUM, 256, 0, 0, NULL, 0);
+
+	if (err != ESP_OK && err != ESP_FAIL)
+	{
+		ESP_ERROR_CHECK(err);
+	}
 	ESP_ERROR_CHECK(uart_param_config((uart_port_t)CONFIG_ESP_CONSOLE_UART_NUM, &uart_config));
 
 	/* Tell VFS to use UART driver */
@@ -220,8 +225,8 @@ void Console::ConsoleTask(void *arg)
 		}
 #else
 		if (line == NULL)
-		{ /* Break on EOF or error */
-			break;
+		{ /* Try again on EOF or error */
+			continue;
 		}
 #endif // CONFIG_CONSOLE_IGNORE_EMPTY_LINES
 

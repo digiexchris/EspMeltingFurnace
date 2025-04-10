@@ -22,7 +22,7 @@ bool isInRange(int value, int min, int max)
 
 TempController *TempController::myInstance = nullptr;
 
-TempController::TempController(SPIBusManager *aBusManager) : mySpiBusManager(aBusManager)
+TempController::TempController(TempDevice *aTempDevice, SPIBusManager *aBusManager) : myTempDevice(aTempDevice), mySpiBusManager(aBusManager)
 {
 	ESP_LOGI(TCTAG, "Initialize");
 
@@ -35,16 +35,13 @@ TempController::TempController(SPIBusManager *aBusManager) : mySpiBusManager(aBu
 
 	initPID();
 
-	xTaskCreate(&pidTask, "pid_task", 2048, this, 6, NULL);
+	xTaskCreate(&pidTask, "pid_task", 2048 * 2, this, 6, NULL);
 }
 
 TempController::~TempController()
 {
 	// Clean up resources
-	if (myThermocouple != nullptr)
-	{
-		delete myThermocouple;
-	}
+
 	if (myAutoPIDRelay != nullptr)
 	{
 		delete myAutoPIDRelay;
@@ -65,17 +62,13 @@ TempController::~TempController()
 void TempController::pidTask(void *pvParameter)
 {
 	TempController *instance = static_cast<TempController *>(pvParameter);
-	TempDevice *thermocouple = TempDevice::GetInstance();
+	TempDevice *thermocouple = instance->myTempDevice;
 
 	GPIOManager *gpio = GPIOManager::GetInstance();
 
 	State *state = State::GetInstance();
 
-	TempResult result = {
-		.thermocouple_c = 0,
-		.thermocouple_f = 0,
-		.fault = 0,
-	};
+	TempResult result;
 
 	if (instance == nullptr)
 	{
@@ -89,6 +82,7 @@ void TempController::pidTask(void *pvParameter)
 		{
 			ESP_LOGE(TCTAG, "GPIOManager instance is null");
 			vTaskDelay(1000 / portTICK_PERIOD_MS);
+			State *state = State::GetInstance();
 			continue;
 		}
 

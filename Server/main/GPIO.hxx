@@ -15,6 +15,10 @@ public:
 
 	static GPIOManager *GetInstance()
 	{
+		if (myInstance == nullptr)
+		{
+			myInstance = new GPIOManager();
+		}
 		return myInstance;
 	}
 
