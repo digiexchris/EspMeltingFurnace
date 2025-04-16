@@ -1,0 +1,6 @@
+# Legacy build system support
+COMPONENT_ADD_INCLUDEDIRS := ftxui/include
+COMPONENT_REQUIRES := pthread
+
+# Add C++ flags
+CXXFLAGS += -std=c++17

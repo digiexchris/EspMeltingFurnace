@@ -24,6 +24,10 @@
 #include "TempController.hxx"
 #include "hardware.h"
 
+#include <ftxui/dom/elements.hpp>
+#include <ftxui/screen/screen.hpp>
+#include <ftxui/screen/string.hpp>
+
 #define CONSOLE_MAX_CMDLINE_ARGS 8
 #define CONSOLE_MAX_CMDLINE_LENGTH 256
 #define CONSOLE_PROMPT_MAX_LEN (32)
@@ -105,72 +109,14 @@ void Console::InitializeConsole()
 
 	/* Disable buffering on stdin */
 	setvbuf(stdin, NULL, _IONBF, 0);
-}
 
-void Console::InitializeConsoleLib()
-{
-	/* Initialize the console */
-	esp_console_config_t console_config = {
-		.max_cmdline_length = CONSOLE_MAX_CMDLINE_LENGTH,
-		.max_cmdline_args = CONSOLE_MAX_CMDLINE_ARGS,
-
-#if CONFIG_LOG_COLORS
-		.hint_color = atoi(LOG_COLOR_CYAN)
-#endif
-	};
-	ESP_ERROR_CHECK(esp_console_init(&console_config));
-
-	/* Configure linenoise line completion library */
-	/* Enable multiline editing. If not set, long commands will scroll within
-	 * single line.
-	 */
-	linenoiseSetMultiLine(1);
-
-	/* Tell linenoise where to get command completions and hints */
-	linenoiseSetCompletionCallback(&esp_console_get_completion);
-	linenoiseSetHintsCallback((linenoiseHintsCallback *)&esp_console_get_hint);
-
-	/* Set command history size */
-	linenoiseHistorySetMaxLen(100);
-
-	/* Set command maximum length */
-	linenoiseSetMaxLineLen(console_config.max_cmdline_length);
-
-	/* Don't return empty lines */
-	linenoiseAllowEmpty(false);
-
-#if CONFIG_CONSOLE_STORE_HISTORY
-	/* Load command history from filesystem */
-	linenoiseHistoryLoad(history_path);
-#endif // CONFIG_CONSOLE_STORE_HISTORY
-
-	/* Figure out if the terminal supports escape sequences */
-	const int probe_status = linenoiseProbe();
-	if (probe_status)
-	{ /* zero indicates success */
-		linenoiseSetDumbMode(1);
-	}
-}
-
-void Console::SetupPrompt(const char *prompt_str)
-{
-	/* set command line prompt */
-	const char *prompt_temp = "esp>";
-	if (prompt_str)
-	{
-		prompt_temp = prompt_str;
-	}
-	prompt = std::string(LOG_COLOR_I) + prompt_temp + " " + std::string(LOG_RESET_COLOR);
-
-	if (linenoiseIsDumbMode())
-	{
-#if CONFIG_LOG_COLORS
-		/* Since the terminal doesn't support escape sequences,
-		 * don't use color codes in the s_prompt.
-		 */
-		snprintf(prompt, CONSOLE_PROMPT_MAX_LEN - 1, "%s ", prompt_temp);
-#endif // CONFIG_LOG_COLORS
-	}
+	// Set terminal to raw mode for keypress detection
+	struct termios term;
+	tcgetattr(STDIN_FILENO, &term);
+	term.c_lflag &= ~(ICANON | ECHO); // Disable canonical mode and echo
+	term.c_cc[VMIN] = 0;			  // Return immediately even if no char available
+	term.c_cc[VTIME] = 0;			  // No timeout
+	tcsetattr(STDIN_FILENO, TCSANOW, &term);
 }
 
 Console::Console()
@@ -178,17 +124,14 @@ Console::Console()
 	/* Initialize console output periheral (UART, USB_OTG, USB_JTAG) */
 	InitializeConsole();
 
-	/* Initialize linenoise library and esp_console*/
-	InitializeConsoleLib();
-
-	SetupPrompt("console>");
+	CreateWindow();
 
 	/* Register commands */
-	esp_console_register_help_command();
-	register_system_common();
+	// esp_console_register_help_command();
+	// register_system_common();
 
 #if SOC_WIFI_SUPPORTED
-	register_wifi();
+	// register_wifi();
 #endif
 
 	const esp_console_cmd_t cmd3 = {
@@ -265,6 +208,27 @@ Console::Console()
 
 	xTaskCreate(ConsoleTask, "ConsoleTask", 4096, this, 10, NULL);
 	xTaskCreate(StatusOverlayTask, "StatusOverlayTask", 4096, this, 10, NULL);
+}
+
+void Console::CreateWindow()
+{
+	using namespace ftxui;
+
+	// Initialize the screen
+	auto screen = ScreenInteractive::TerminalOutput();
+
+	// Create your UI components
+	auto component = Container::Vertical({
+		Button("Increment Temperature", [&]
+			   { IncrementTemp(25); }),
+		Button("Decrement Temperature", [&]
+			   { IncrementTemp(-25); }),
+		Button("Toggle Heating", [&]
+			   { SetHeating(!State::GetInstance()->IsEnabled()); }),
+	});
+
+	// Run the UI
+	screen.Loop(component);
 }
 
 int Console::Temp(int argc, char **argv)
@@ -464,56 +428,83 @@ void Console::ConsoleTask(void *arg)
 	/* Main loop */
 	while (42)
 	{
-		/* Get a line using linenoise.
-		 * The line is returned when ENTER is pressed.
-		 */
-		char *line = linenoise(console->prompt.c_str());
-#if CONFIG_CONSOLE_IGNORE_EMPTY_LINES
-		if (line == NULL)
-		{ /* Ignore empty lines */
-			continue;
-			;
-		}
-#else
-		if (line == NULL)
-		{ /* Try again on EOF or error */
-			continue;
-		}
-#endif // CONFIG_CONSOLE_IGNORE_EMPTY_LINES
+		// Read a single character without echo
+		char c;
+		if (read(STDIN_FILENO, &c, 1) > 0)
+		{
+			// Check for escape sequences (arrow keys, etc.)
+			if (c == 27)
+			{ // ESC character
+				char seq[3];
 
-		/* Add the command to the history if not empty*/
-		if (strlen(line) > 0)
-		{
-			linenoiseHistoryAdd(line);
-#if CONFIG_CONSOLE_STORE_HISTORY
-			/* Save command history to filesystem */
-			linenoiseHistorySave(HISTORY_PATH);
-#endif // CONFIG_CONSOLE_STORE_HISTORY
+				// Read up to 2 more chars to identify the sequence
+				if (read(STDIN_FILENO, &seq[0], 1) > 0)
+				{
+					if (seq[0] == '[')
+					{
+						if (read(STDIN_FILENO, &seq[1], 1) > 0)
+						{
+							// Handle arrow keys
+							switch (seq[1])
+							{
+							case 'A': // Up arrow
+								IncrementTemp(25);
+								break;
+							case 'B': // Down arrow
+								IncrementTemp(-25);
+								break;
+							}
+						}
+					}
+				}
+			}
+			// Check for ctrl+shift+s (19 is the ASCII value for ctrl+s)
+			else if (c == 19)
+			{
+				// ToggleHeating(true);
+			}
+			// Check for spacebar
+			else if (c == ' ')
+			{
+				// ToggleHeating(false);
+			}
+
+			// Display status after any keypress
+			Status(0, NULL);
 		}
 
-		/* Try to run the command */
-		int ret;
-		esp_err_t err = esp_console_run(line, &ret);
-		if (err == ESP_ERR_NOT_FOUND)
-		{
-			printf("Unrecognized command\n");
-			Console::Status(0, NULL);
-		}
-		else if (err == ESP_ERR_INVALID_ARG)
-		{
-			// command was empty
-		}
-		else if (err == ESP_OK && ret != ESP_OK)
-		{
-			printf("Command returned non-zero error code: 0x%x (%s)\n", ret, esp_err_to_name(ret));
-		}
-		else if (err != ESP_OK)
-		{
-			printf("Internal error: %s\n", esp_err_to_name(err));
-		}
-		/* linenoise allocates line buffer on the heap, so need to free it */
-		linenoiseFree(line);
+		// Small delay to prevent CPU hogging
+		vTaskDelay(pdMS_TO_TICKS(50));
 	}
+}
+
+void Console::IncrementTemp(int increment)
+{
+	TempController *controller = TempController::GetInstance();
+	float currentTarget = controller->GetTargetTemp();
+	float newTarget = currentTarget + increment;
+
+	// Apply limits
+	if (newTarget < MIN_TEMP)
+	{
+		newTarget = MIN_TEMP;
+	}
+	if (newTarget > MAX_TEMP)
+	{
+		newTarget = MAX_TEMP;
+	}
+
+	controller->SetTargetTemp(newTarget);
+	printf("\nTemperature %s to %.1f°C\n",
+		   (increment > 0) ? "increased" : "decreased",
+		   newTarget);
+}
+
+void Console::SetHeating(bool enabled)
+{
+	State *state = State::GetInstance();
+	state->SetEnabled(enabled);
+	printf("\nHeating %s\n", enabled ? "enabled" : "disabled");
 }
 
 void Console::StatusOverlayTask(void *arg)
@@ -521,6 +512,14 @@ void Console::StatusOverlayTask(void *arg)
 
 	while (42)
 	{
+		printf("\n\n");
+		printf("Keyboard Controls:\n");
+		printf("UP ARROW    - Increase temperature by 25°C\n");
+		printf("DOWN ARROW  - Decrease temperature by 25°C\n");
+		printf("CTRL+SHIFT+S - Start heating\n");
+		printf("SPACE       - Stop heating\n");
+		printf("\n");
+
 		// Save cursor position
 		printf("\033[s");
 

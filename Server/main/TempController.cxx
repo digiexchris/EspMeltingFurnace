@@ -299,7 +299,7 @@ void TempController::heatRateTask(void *pvParam)
 
 			if (instance->myInternalSetTemp < instance->myCurrentTemp)
 			{
-				*instance->myInternalSetTemp = instance->myCurrentTemp;
+				*instance->myInternalSetTemp = *instance->myCurrentTemp;
 			}
 
 			// Calculate the new target temperature based on the heating rate

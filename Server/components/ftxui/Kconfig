@@ -1,0 +1,7 @@
+menu "FTXUI Configuration"
+    config FTXUI_MEMORY_LIMIT
+        int "Maximum memory for FTXUI components (KB)"
+        default 100
+        help
+            This sets the memory limit for FTXUI components.
+endmenu
