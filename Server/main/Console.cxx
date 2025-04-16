@@ -20,6 +20,10 @@
 #include "cmd_system.h"
 #include "cmd_wifi.h"
 
+#include "State.hxx"
+#include "TempController.hxx"
+#include "hardware.h"
+
 #define CONSOLE_MAX_CMDLINE_ARGS 8
 #define CONSOLE_MAX_CMDLINE_LENGTH 256
 #define CONSOLE_PROMPT_MAX_LEN (32)
@@ -187,6 +191,40 @@ Console::Console()
 	register_wifi();
 #endif
 
+	const esp_console_cmd_t cmd3 = {
+		.command = "temp",
+		.help = "Get/Set the target temperature and get current temp",
+		.hint = NULL,
+		.func = &Temp,
+	};
+	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd3));
+
+	const esp_console_cmd_t cmd4 = {
+		.command = "getPwmDutyCycle",
+		.help = "Get the current PWM duty cycle",
+		.hint = NULL,
+		.func = &GetPwmDutyCycle,
+	};
+	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd4));
+
+	const esp_console_cmd_t cmd5 = {
+		.command = "heating",
+		.help = "Set/Get the heating state (on/off)",
+		.hint = NULL,
+		.func = &Heating,
+	};
+	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd5));
+
+#if SIMULATED_TEMP_DEVICE
+	const esp_console_cmd_t cmd2 = {
+		.command = "setSimTemp",
+		.help = "Set the simulated thermocouple temp output",
+		.hint = NULL,
+		.func = &SetSimThermocoupleTemp,
+	};
+	ESP_ERROR_CHECK(esp_console_cmd_register(&cmd2));
+#endif
+
 	printf("\n"
 		   "Type 'help' to get the list of commands.\n"
 		   "Use UP/DOWN arrows to navigate through command history.\n"
@@ -201,10 +239,97 @@ Console::Console()
 			   "Line editing and history features are disabled.\n"
 			   "On Windows, try using Putty instead.\n");
 		linenoiseSetDumbMode(1);
-
-		xTaskCreate(ConsoleTask, "ConsoleTask", 4096, this, 10, NULL);
 	}
+
+	xTaskCreate(ConsoleTask, "ConsoleTask", 4096, this, 10, NULL);
+	xTaskCreate(StatusTask, "StatusTask", 4096, this, 10, NULL);
 }
+
+int Console::Temp(int argc, char **argv)
+{
+	TempController *controller = TempController::GetInstance();
+	if (argc == 2)
+	{
+		double temp = atof(argv[1]);
+		controller->SetTemp(temp);
+		printf("Set temperature: %.2f\n", temp);
+	}
+	else
+	{
+		printf("Usage: setTemp <temp>\n");
+		printf("Current temperature: %.2f\n", controller->GetCurrentTemp());
+		printf("Set temperature: %.2f\n", controller->GetTargetTemp());
+	}
+	return 0;
+}
+
+int Console::GetPwmDutyCycle(int argc, char **argv)
+{
+	TempController *controller = TempController::GetInstance();
+	if (argc == 1)
+	{
+		printf("Current PWM duty cycle: %d\n", controller->GetPwmDutyCycle());
+	}
+	else
+	{
+		printf("Usage: getPwmDutyCycle\n");
+	}
+	return 0;
+}
+
+int Console::Heating(int argc, char **argv)
+{
+	TempController *controller = TempController::GetInstance();
+	if (argc == 2)
+	{
+		bool enabled = false;
+
+		// Check for "on" string
+		if (strcmp(argv[1], "on") == 0 || strcmp(argv[1], "1") == 0)
+		{
+			enabled = true;
+		}
+		else if (strcmp(argv[1], "off") == 0 || strcmp(argv[1], "0") == 0)
+		{
+			enabled = false;
+		}
+		else
+		{
+			printf("Invalid argument. Use 'on'/'1' or 'off'/'0'\n");
+			return 1;
+		}
+
+		State *state = State::GetInstance();
+		state->SetEnabled(enabled);
+		printf("Heating %s\n", enabled ? "enabled" : "disabled");
+	}
+	else
+	{
+		printf("Usage: setHeating <0|1>\n");
+		printf("Heating %s\n", State::GetInstance()->IsEnabled() ? "enabled" : "disabled");
+	}
+	return 0;
+}
+
+#if SIMULATED_TEMP_DEVICE
+int Console::SetSimThermocoupleTemp(int argc, char **argv)
+{
+
+	if (argc == 2)
+	{
+		TempController *controller = TempController::GetInstance();
+		double temp = atof(argv[1]);
+		SimulatedTempDevice *simulatedThermocouple = static_cast<SimulatedTempDevice *>(controller->GetTempDevice());
+		simulatedThermocouple->SetTemp(temp);
+		printf("Set temperature: %.2f\n", temp);
+	}
+	else
+	{
+		printf("Usage: setSimTemp <temp>\n");
+	}
+	return 0;
+}
+#endif
 
 void Console::ConsoleTask(void *arg)
 {
@@ -261,5 +386,21 @@ void Console::ConsoleTask(void *arg)
 		}
 		/* linenoise allocates line buffer on the heap, so need to free it */
 		linenoiseFree(line);
+	}
+}
+
+void Console::StatusTask(void *arg)
+{
+	TempController *controller = TempController::GetInstance();
+	State *state = State::GetInstance();
+
+	while (42)
+	{
+		printf("Current temperature: %.2f\n", controller->GetCurrentTemp());
+		printf("Set temperature: %.2f\n", controller->GetTargetTemp());
+		printf("Heating %s\n", state->IsEnabled() ? "enabled" : "disabled");
+		printf("PWM duty cycle: %d\n", controller->GetPwmDutyCycle());
+
+		vTaskDelay(5000 / portTICK_PERIOD_MS);
 	}
 }

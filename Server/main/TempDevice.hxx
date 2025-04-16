@@ -82,36 +82,51 @@ struct TempResult
 class AtomicTempResult
 {
 private:
-	std::atomic<TempResult> value;
+	TempResult value;
+	SemaphoreHandle_t mutex;
 
 public:
-	AtomicTempResult() : value(TempResult{}) {}
+	AtomicTempResult() : value(TempResult{}) { mutex = xSemaphoreCreateMutex(); }
+
+	~AtomicTempResult()
+	{
+		if (mutex != NULL)
+		{
+			vSemaphoreDelete(mutex);
+			mutex = NULL;
+		}
+	}
 
 	AtomicTempResult &operator=(const TempResult &other)
 	{
-		value.store(other, std::memory_order_release);
+		xSemaphoreTake(mutex, portMAX_DELAY);
+		value = other;
+		xSemaphoreGive(mutex);
 		return *this;
 	}
 
 	AtomicTempResult &operator=(const MAX31856::Result &other)
 	{
-		TempResult temp;
-		temp = other;
-		value.store(temp, std::memory_order_release);
+		xSemaphoreTake(mutex, portMAX_DELAY);
+		value = other;
+		xSemaphoreGive(mutex);
 		return *this;
 	}
 
 	AtomicTempResult &operator=(const MAX31856::Result *other)
 	{
-		TempResult temp;
-		temp = other;
-		value.store(temp, std::memory_order_release);
+		xSemaphoreTake(mutex, portMAX_DELAY);
+		value = other;
+		xSemaphoreGive(mutex);
 		return *this;
 	}
 
 	operator TempResult() const
 	{
-		return value.load(std::memory_order_acquire);
+		xSemaphoreTake(mutex, portMAX_DELAY);
+		TempResult copy = value;
+		xSemaphoreGive(mutex);
+		return copy;
 	}
 };
 
@@ -119,6 +134,7 @@ class TempDevice
 {
 public:
 	virtual TempResult GetResult() = 0;
+	float GetTempC() { return GetResult().thermocouple_c; }
 	virtual void SetType(TempType type) = 0;
 	virtual void SetTempFaultThresholds(float high, float low) = 0;
 };
@@ -131,12 +147,15 @@ public:
 	void SetType(TempType type);
 	void SetTempFaultThresholds(float high, float low);
 	void SetTemp(float celsius);
+	void SetHeatingPowerPerSecond(float power);
 
 private:
+	static void TempTask(void *pvParameter);
 	TempResult myResult;
 	TempType myType;
 	float myHighFaultThreshold;
 	float myLowFaultThreshold;
+	float myHeatingPowerPerSecond = 0;
 };
 
 class MAX31856TempDevice : public TempDevice

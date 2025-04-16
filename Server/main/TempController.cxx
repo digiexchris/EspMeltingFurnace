@@ -12,6 +12,7 @@
 #include "TempController.hxx"
 
 #include "TempDevice.hxx"
+#include "hardware.h"
 
 const char *TCTAG = "TempController";
 
@@ -82,7 +83,6 @@ void TempController::pidTask(void *pvParameter)
 		{
 			ESP_LOGE(TCTAG, "GPIOManager instance is null");
 			vTaskDelay(1000 / portTICK_PERIOD_MS);
-			State *state = State::GetInstance();
 			continue;
 		}
 
@@ -133,7 +133,7 @@ void TempController::pidTask(void *pvParameter)
 		{
 
 			// reminder: the set point is a pointer to a variable in this dcflass, no need to manually call setters on the autopid to manage it.
-			ESP_LOGI(TCTAG, "Running PID");
+			ESP_LOGD(TCTAG, "Running PID");
 			instance->myAutoPIDRelay->run();
 
 			int output = instance->myAutoPIDRelay->getPulseValue();
@@ -217,6 +217,12 @@ void TempController::setSSRDutyCycle(int duty)
 	}
 	SSR_CURRENT_PWM = duty;
 
+#if SIMULATED_TEMP_DEVICE
+	SimulatedTempDevice *simulatedThermocouple = static_cast<SimulatedTempDevice *>(myTempDevice);
+	simulatedThermocouple->SetHeatingPowerPerSecond(duty);
+
+#endif
+
 	ESP_LOGD(TCTAG, "SSR duty cycle set to %d/%d", duty, myConfig.SSR_FULL_PWM);
 }
 
@@ -236,11 +242,12 @@ void TempController::updateSoftPwm()
 {
 	static uint32_t cycleStartTime = 0;
 	static int currentDuty = 0;
+	State *state = State::GetInstance();
 
 	uint32_t currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
 
 	// At the start of each PWM cycle
-	if (currentTime - cycleStartTime >= myConfig.PWM_PERIOD_MS)
+	if (currentTime - cycleStartTime >= myConfig.PWM_PERIOD_MS && state->IsEnabled())
 	{
 		cycleStartTime = currentTime;
 		currentDuty = SSR_CURRENT_PWM;
@@ -265,6 +272,9 @@ void TempController::updateSoftPwm()
 		{
 			// Zero duty cycle - keep SSR off
 			gpio_set_level(HEATER_SSR_PIN, 0);
+			xTimerChangePeriod(mySoftPwmTimer, pdMS_TO_TICKS(myConfig.PWM_PERIOD_MS - (currentTime - cycleStartTime)), 0);
+
+			return;
 		}
 	}
 	else

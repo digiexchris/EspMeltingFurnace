@@ -91,6 +91,11 @@ public:
 		return SSR_CURRENT_PWM;
 	}
 
+	TempDevice *GetTempDevice()
+	{
+		return myTempDevice;
+	}
+
 private:
 	Config myConfig;
 	TempDevice *myTempDevice;
