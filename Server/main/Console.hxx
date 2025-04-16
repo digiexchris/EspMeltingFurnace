@@ -29,7 +29,6 @@ public:
 
 private:
 	static void ConsoleTask(void *arg);
-	static void StatusTask(void *arg);
 	void InitializeConsole();
 	void InitializeConsoleLib();
 	void SetupPrompt(const char *prompt_str);
@@ -37,6 +36,8 @@ private:
 	static int Temp(int argc, char **argv);
 	static int GetPwmDutyCycle(int argc, char **argv);
 	static int Heating(int argc, char **argv);
+	static int Status(int argc, char **argv);
+	static void StatusOverlayTask(void *arg);
 
 #if SIMULATED_TEMP_DEVICE
 	static int SetSimThermocoupleTemp(int argc, char **argv);

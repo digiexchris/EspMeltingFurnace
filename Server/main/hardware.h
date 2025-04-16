@@ -27,8 +27,12 @@ static constexpr uart_port_t MODBUS_UART_PORT = UART_NUM_1;
 static constexpr gpio_num_t MODBUS_TX = GPIO_NUM_13;
 static constexpr gpio_num_t MODBUS_RX = GPIO_NUM_14;
 
-static constexpr float STARTUP_HEATING_RATE = 0.5f;
+static constexpr int LINE_FREQ = 60;
+static constexpr float HEATING_BANG_BANG_WINDOW = 50;		 // if the temp is outside of this window of the target temp, it will switch from PID to bang-bang to rapidly heat/cool to that point
+static constexpr float MAX_HEATING_RATE_PER_SECOND = 100.0f; // reduce this if your element is too powerful and you must prevent it from applying full speed heating. Defaults to a maximum of 10 degrees per second. Ideally, it should be larger than your bang bang window.
+static constexpr float STARTUP_HEATING_RATE_PER_SECOND = 0.5f;
 static constexpr float STARTUP_HEATING_RATE_UNDER_TEMP = 500.0f; // below this temperature, the startup heating rate is 0.5 degrees per second to slowly warm up the crucible
+static constexpr float HEATING_RATE_TASK_PERIOD_MS = 1000.0f;	 // how often to calculate if we need to set the next internal target according to our heating rate schedule. For furnaces with a large mass, this should be multiple seconds so that the PID can accelerate properly when the target temp increments.
 
 #define SIMULATED_TEMP_DEVICE 1
 

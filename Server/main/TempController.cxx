@@ -4,6 +4,7 @@
 #include "freertos/task.h"
 #include "max31856-espidf/max31856.hxx"
 #include "sdkconfig.h"
+#include <algorithm>
 #include <esp_log.h>
 #include <stdio.h>
 
@@ -31,12 +32,14 @@ TempController::TempController(TempDevice *aTempDevice, SPIBusManager *aBusManag
 
 	// Allocate memory for data passed in and out of autopid
 	myCurrentTemp = new double(0.0);
-	mySetTemp = new double(0.0);
+	mySetTemp = 0.0;
+	myInternalSetTemp = new double(0.0);
 	myRelayState = new bool(false);
 
 	initPID();
 
 	xTaskCreate(&pidTask, "pid_task", 2048 * 2, this, 6, NULL);
+	xTaskCreate(&heatRateTask, "heatRateTask", 2048 * 2, this, 7, NULL);
 }
 
 TempController::~TempController()
@@ -64,11 +67,9 @@ void TempController::pidTask(void *pvParameter)
 {
 	TempController *instance = static_cast<TempController *>(pvParameter);
 	TempDevice *thermocouple = instance->myTempDevice;
-
 	GPIOManager *gpio = GPIOManager::GetInstance();
-
 	State *state = State::GetInstance();
-
+	const int loopDelayMs = 250;
 	TempResult result;
 
 	if (instance == nullptr)
@@ -88,7 +89,7 @@ void TempController::pidTask(void *pvParameter)
 
 		result = thermocouple->GetResult();
 
-		float highLimit = std::min<float>((float)*instance->mySetTemp + 50, MAX_TEMP);
+		float highLimit = std::min<float>((float)*instance->myInternalSetTemp + 50, MAX_TEMP);
 
 		if (result.thermocouple_c > highLimit)
 		{
@@ -115,19 +116,6 @@ void TempController::pidTask(void *pvParameter)
 		}
 
 		*instance->myCurrentTemp = result.thermocouple_c;
-		if (*instance->myCurrentTemp < instance->myConfig.SSR_REDUCED_PWM_UNDER && instance->SSR_CURRENT_MAX_PWM != instance->myConfig.SSR_REDUCED_PWM_VALUE)
-		{
-			instance->myAutoPIDRelay->setOutputRange(instance->myConfig.SSR_OFF_PWM, instance->myConfig.SSR_REDUCED_PWM_VALUE);
-			instance->SSR_CURRENT_MAX_PWM = instance->myConfig.SSR_REDUCED_PWM_VALUE;
-		}
-		else
-		{
-			if (instance->SSR_CURRENT_MAX_PWM != instance->myConfig.SSR_FULL_PWM)
-			{
-				instance->myAutoPIDRelay->setOutputRange(instance->myConfig.SSR_OFF_PWM, instance->myConfig.SSR_FULL_PWM);
-				instance->SSR_CURRENT_MAX_PWM = instance->myConfig.SSR_FULL_PWM;
-			}
-		}
 
 		if (!state->HasError() && state->IsEnabled())
 		{
@@ -156,13 +144,13 @@ void TempController::pidTask(void *pvParameter)
 			}
 		}
 
-		vTaskDelay(500 / portTICK_PERIOD_MS);
+		vTaskDelay(loopDelayMs / portTICK_PERIOD_MS);
 	}
 }
 
 void TempController::initPID()
 {
-	myAutoPIDRelay = new AutoPIDRelay(myCurrentTemp, mySetTemp, myRelayState, myConfig.PWM_PERIOD_MS, myConfig.P, myConfig.D, myConfig.I);
+	myAutoPIDRelay = new AutoPIDRelay(myCurrentTemp, myInternalSetTemp, myRelayState, myConfig.PWM_PERIOD_MS, myConfig.P, myConfig.D, myConfig.I);
 	myAutoPIDRelay->setBangBang(myConfig.SSR_BANG_BANG_WINDOW);
 	myAutoPIDRelay->setTimeStep(1000);
 	myAutoPIDRelay->setOutputRange(myConfig.SSR_OFF_PWM, myConfig.SSR_FULL_PWM);
@@ -284,5 +272,55 @@ void TempController::updateSoftPwm()
 
 		// Reset timer to full period for next cycle
 		xTimerChangePeriod(mySoftPwmTimer, pdMS_TO_TICKS(myConfig.PWM_PERIOD_MS - (currentTime - cycleStartTime)), 0);
+	}
+}
+
+void TempController::heatRateTask(void *pvParam)
+{
+	TempController *instance = static_cast<TempController *>(pvParam);
+
+	State *state = State::GetInstance();
+
+	float currentTemp = 0;
+	float iterationTempIncrease = 0;
+	float heatingRate = 0;
+
+	while (42)
+	{
+		if (instance == nullptr)
+		{
+			ESP_LOGE(TCTAG, "instance is null");
+			vTaskDelay(1000 / portTICK_PERIOD_MS);
+			continue;
+		}
+
+		if (!state->HasError() & state->IsEnabled())
+		{
+
+			if (instance->myInternalSetTemp < instance->myCurrentTemp)
+			{
+				*instance->myInternalSetTemp = instance->myCurrentTemp;
+			}
+
+			// Calculate the new target temperature based on the heating rate
+			float currentTemp = *instance->myCurrentTemp;
+			if (currentTemp < STARTUP_HEATING_RATE_UNDER_TEMP && instance->myConfig.HEATING_RATE_PER_SECOND > STARTUP_HEATING_RATE_PER_SECOND)
+			{
+				heatingRate = STARTUP_HEATING_RATE_PER_SECOND;
+			}
+			else
+			{
+				heatingRate = instance->myConfig.HEATING_RATE_PER_SECOND;
+			}
+
+			iterationTempIncrease = std::min(static_cast<double>(HEATING_RATE_TASK_PERIOD_MS / 1000.0f), instance->mySetTemp - currentTemp);
+
+			if (iterationTempIncrease > 0)
+			{
+				*instance->myInternalSetTemp += iterationTempIncrease * (HEATING_RATE_TASK_PERIOD_MS / 1000.0f);
+			}
+		}
+
+		vTaskDelay(HEATING_RATE_TASK_PERIOD_MS / portTICK_PERIOD_MS);
 	}
 }

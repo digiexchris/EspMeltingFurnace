@@ -37,12 +37,13 @@ public:
 		int P = 30;
 		int I = 50;
 		int D = 1;
-		int SSR_REDUCED_PWM_UNDER = 400; // aka HEATER_REDUCE_PWM_UNDER
-		int SSR_REDUCED_PWM_VALUE = 512; // aka HEATER_REDUCED_PWM_VALUE
-		int SSR_FULL_PWM = 1023;		 // aka HEATER_FULL_PWM
-		int SSR_OFF_PWM = 0;			 // aka HEATER_OFF_PWM
-		int SSR_BANG_BANG_WINDOW = 50;	 // aka PID_WINDOW
-		int PWM_PERIOD_MS = 5000;		 // aka HEATER_PERIOD
+		int SSR_REDUCED_PWM_UNDER = STARTUP_HEATING_RATE_UNDER_TEMP; // aka HEATER_REDUCE_PWM_UNDER
+		int SSR_REDUCED_PWM_VALUE = 512;							 // aka HEATER_REDUCED_PWM_VALUE
+		int SSR_FULL_PWM = 1023;									 // aka HEATER_FULL_PWM
+		int SSR_OFF_PWM = 0;										 // aka HEATER_OFF_PWM
+		int SSR_BANG_BANG_WINDOW = HEATING_BANG_BANG_WINDOW;		 // aka PID_WINDOW in AutoPid
+		int PWM_PERIOD_MS = (1000.0f / LINE_FREQ * 10);				 // aka HEATER_PERIOD, 1/10th of the line frequency since a zero crossing SSR will only operate at line frequency. This gives us a resolution of approximately 6 steps of 16.666667 ms each.
+		float HEATING_RATE_PER_SECOND = MAX_HEATING_RATE_PER_SECOND;
 	};
 
 	TempController(TempDevice *aTempDevice, SPIBusManager *aBusManager);
@@ -50,7 +51,7 @@ public:
 
 	void SetTemp(double temp)
 	{
-		*mySetTemp = temp;
+		mySetTemp = temp;
 	}
 
 	static TempController *GetInstance()
@@ -63,6 +64,11 @@ public:
 		return myConfig;
 	}
 
+	float GetInternalSetTemp()
+	{
+		return *myInternalSetTemp;
+	}
+
 	void SetConfig(Config config)
 	{
 		myConfig = config;
@@ -73,12 +79,12 @@ public:
 
 	float GetTargetTemp()
 	{
-		return *mySetTemp;
+		return mySetTemp;
 	}
 
 	void SetTargetTemp(double temp)
 	{
-		*mySetTemp = temp;
+		mySetTemp = temp;
 	}
 
 	float GetCurrentTemp()
@@ -96,22 +102,29 @@ public:
 		return myTempDevice;
 	}
 
+	void SetHeatingRate(float rate)
+	{
+		myConfig.HEATING_RATE_PER_SECOND = rate;
+	}
+
 private:
 	Config myConfig;
 	TempDevice *myTempDevice;
 
-	int SSR_CURRENT_MAX_PWM = 512;
+	int SSR_CURRENT_MAX_PWM = 1023;
 	int SSR_CURRENT_PWM = 0;
 	SPIBusManager *mySpiBusManager;
 	static TempController *myInstance;
 
 	bool *myRelayState = nullptr; // dummy relay state for the AutoPIDRelay constructor, will be using the pulse width instead
 	double *myCurrentTemp = nullptr;
-	double *mySetTemp = nullptr;
+	double mySetTemp = 0;				 // the user's requrested temp
+	double *myInternalSetTemp = nullptr; // the temp as the target for the PID. This differs from the user's requested temp because this supports slowing the heating rate (ramp/soak)
 	bool myIsEnabled = false;
 	static void receiverTask(void *pvParameter);
 	static void thermocoupleTask(void *pvParameter);
 	static void pidTask(void *pvParameter);
+	static void heatRateTask(void *pvParameter);
 
 	// Software PWM timer and callback
 	TimerHandle_t mySoftPwmTimer = nullptr;
